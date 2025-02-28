@@ -7,12 +7,18 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Disc Golf Records</h1>
-    <p><a href="index.html">Back to Stats</a></p>
-    <h2>Course Records</h2>
-    <div id="course-records"></div>
-    <h2>Personal Bests</h2>
-    <div id="personal-bests"></div>
+    <header>
+        <h1>Disc Golf Records</h1>
+        <p><a href="index.html">Back to Stats</a></p>
+    </header>
+    <section>
+        <h2>Course Records</h2>
+        <div id="course-records" class="records-container"></div>
+    </section>
+    <section>
+        <h2>Personal Bests</h2>
+        <div id="personal-bests" class="records-container"></div>
+    </section>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
         // Function to parse custom date format (YYYY-MM-DD HHMM)
@@ -31,7 +37,7 @@
                     header: true,
                     complete: function(results) {
                         const data = results.data;
-                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza']; // Updated casing
+                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                         const filteredData = data.filter(row => players.includes(row.PlayerName));
                         
                         // Process course records
@@ -56,7 +62,13 @@
                         const courseRecordsHtml = Object.entries(courseRecords).map(([key, record]) => {
                             const [course, layout] = key.split('-');
                             const holders = record.records.map(r => `${r.player} on ${r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`).join(', ');
-                            return `<p><strong>${course} - ${layout}</strong>: ${record.minTotal} by ${holders}</p>`;
+                            return `
+                                <div class="record-card">
+                                    <h3>${course} - ${layout}</h3>
+                                    <p><strong>Score:</strong> ${record.minTotal}</p>
+                                    <p><strong>Held by:</strong> ${holders}</p>
+                                </div>
+                            `;
                         }).join('');
                         document.getElementById('course-records').innerHTML = courseRecordsHtml;
                         
@@ -88,10 +100,19 @@
                             playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, date: personalBests[key].date });
                         }
                         
-                        // Generate personal bests HTML
+                        // Generate personal bests HTML with player-specific classes
                         const personalBestsHtml = Object.entries(playerBests).map(([player, bests]) => {
-                            const bestsList = bests.map(b => `<li><strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</li>`).join('');
-                            return `<h3>${player}</h3><ul>${bestsList}</ul>`;
+                            const bestsList = bests.map(b => `
+                                <li>
+                                    <strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </li>
+                            `).join('');
+                            return `
+                                <div class="record-card personal-best ${player.toLowerCase()}">
+                                    <h3>${player}</h3>
+                                    <ul>${bestsList}</ul>
+                                </div>
+                            `;
                         }).join('');
                         document.getElementById('personal-bests').innerHTML = personalBestsHtml;
                     }

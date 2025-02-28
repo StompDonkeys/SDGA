@@ -8,10 +8,19 @@
 </head>
 <body>
     <h1>Disc Golf Stats</h1>
-    <p><a href="records.html">View Records</a></p> <!-- Link to records page -->
+    <p><a href="records.html">View Records</a></p>
     <div id="stats-container"></div>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
+        // Function to parse custom date format (YYYY-MM-DD HHMM)
+        function parseCustomDate(dateStr) {
+            const [datePart, timePart] = dateStr.split(' ');
+            const hours = timePart.slice(0, 2);
+            const minutes = timePart.slice(2, 4);
+            const isoDate = `${datePart}T${hours}:${minutes}`;
+            return new Date(isoDate);
+        }
+
         fetch('data.csv')
             .then(response => response.text())
             .then(csvText => {
@@ -23,15 +32,15 @@
                         const filteredData = data.filter(row => players.includes(row.PlayerName));
                         
                         // Sort by StartDate descending (newest first)
-                        filteredData.sort((a, b) => new Date(b.StartDate) - new Date(a.StartDate));
+                        filteredData.sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
                         
                         const container = document.getElementById('stats-container');
                         filteredData.forEach(row => {
                             const card = document.createElement('div');
                             card.className = 'card';
                             
-                            const date = new Date(row.StartDate.replace(' ', 'T'));
-                            const formattedDate = date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+                            const date = parseCustomDate(row.StartDate);
+                            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             
                             card.innerHTML = `
                                 <h2>${formattedDate}</h2>

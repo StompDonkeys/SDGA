@@ -36,6 +36,14 @@
             return new Date(isoDate);
         }
 
+        function isRoundComplete(row) {
+            for (let i = 1; i <= 18; i++) {
+                const holeScore = parseInt(row[`Hole${i}`]) || 0;
+                if (holeScore === 0 || isNaN(holeScore)) return false;
+            }
+            return true;
+        }
+
         fetch('data.csv')
             .then(response => response.text())
             .then(csvText => {
@@ -44,9 +52,8 @@
                     complete: function(results) {
                         const data = results.data;
                         const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName));
+                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
 
-                        // Group data by player and sort by date descending
                         const playerData = {};
                         players.forEach(player => {
                             playerData[player] = filteredData
@@ -54,36 +61,58 @@
                                 .sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
                         });
 
-                        // Function to calculate current rating (best 8 of last 20)
                         function calculateCurrentRating(rounds) {
-                            const last20 = rounds.slice(0, 20); // Last 20 rounds
+                            const last20 = rounds.slice(0, 20);
                             const validRatings = last20
                                 .map(r => parseInt(r.RoundRating) || 0)
                                 .filter(r => r > 0)
-                                .sort((a, b) => b - a) // Highest to lowest
-                                .slice(0, 8); // Best 8
-                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : 'N/A';
+                                .sort((a, b) => b - a)
+                                .slice(0, 8);
+                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
                         }
 
-                        // Function to calculate previous rating (before most recent round)
                         function calculatePreviousRating(rounds) {
                             const last20 = rounds.slice(0, 20);
                             const validRatings = last20
                                 .map(r => parseInt(r.RoundRating) || 0)
                                 .filter(r => r > 0)
                                 .sort((a, b) => b - a)
-                                .slice(1, 9); // Exclude most recent, take next 8
-                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : 'N/A';
+                                .slice(1, 9);
+                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
                         }
 
-                        // Function to determine rating movement
                         function getRatingMovement(current, previous) {
                             if (current === 'N/A' || previous === 'N/A') return '';
-                            const diff = current - previous;
-                            return diff > 0 ? `(+${diff})` : diff < 0 ? `(${diff})` : '(±0)';
+                            const diff = parseFloat(current) - parseFloat(previous);
+                            return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
                         }
 
-                        // Generate player profiles
+                        // Function to count aces (hole score of 1)
+                        function countAces(rounds) {
+                            let aceCount = 0;
+                            rounds.forEach(round => {
+                                for (let i = 1; i <= 18; i++) {
+                                    if (parseInt(round[`Hole${i}`]) === 1) aceCount++;
+                                }
+                            });
+                            return aceCount;
+                        }
+
+                        // Function to get best score per course
+                        function getBestScoresPerCourse(rounds) {
+                            const bestScores = {};
+                            rounds.forEach(round => {
+                                const course = round.CourseName;
+                                const total = parseInt(round.Total);
+                                const plusMinus = parseInt(round['+/-']);
+                                const date = round.StartDate.split(' ')[0]; // Just the date part
+                                if (!bestScores[course] || total < parseInt(bestScores[course].total)) {
+                                    bestScores[course] = { total, plusMinus, date };
+                                }
+                            });
+                            return bestScores;
+                        }
+
                         const container = document.getElementById('player-profiles');
                         players.forEach((player, index) => {
                             const rounds = playerData[player];
@@ -92,25 +121,31 @@
                             const totalRounds = rounds.length;
                             const totalScores = rounds.map(r => parseInt(r.Total) || 0).filter(s => s > 0);
                             const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : 'N/A';
-                            const bestScore = totalScores.length ? Math.min(...totalScores) : 'N/A';
                             const totalPlusMinus = rounds.map(r => parseInt(r['+/-']) || 0).reduce((a, b) => a + b, 0);
                             const currentRating = calculateCurrentRating(rounds);
                             const previousRating = calculatePreviousRating(rounds);
                             const ratingMovement = getRatingMovement(parseFloat(currentRating) || 0, parseFloat(previousRating) || 0);
+                            const aceCount = countAces(rounds);
+                            const bestScores = getBestScoresPerCourse(rounds);
 
                             const card = document.createElement('div');
                             card.className = 'record-card player-profile';
                             card.style.animationDelay = `${index * 0.1}s`;
 
+                            // Convert bestScores object to array for HTML list
+                            const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `
+                                <li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>
+                            `).join('');
+
                             card.innerHTML = `
                                 <h3>${player}</h3>
                                 <p><strong>Rounds Played:</strong> ${totalRounds}</p>
                                 <p><strong>Average Score:</strong> ${avgScore}</p>
-                                <p><strong>Best Score:</strong> ${bestScore} (${rounds.find(r => parseInt(r.Total) === bestScore)?.StartDate.split(' ')[0] || 'N/A'})</p>
+                                <p><strong>Best Scores by Course:</strong></p>
+                                <ul>${bestScoresHtml}</ul>
                                 <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
                                 <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
-                                <p><strong>Bio:</strong> [Add a fun bio or story here!]</p>
-                                <p><strong>Avatar:</strong> [Upload an image to personalize!]</p>
+                                <p><strong>Ace Count:</strong> ${aceCount}</p>
                             `;
                             container.appendChild(card);
                         });

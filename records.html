@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StompDonkey Disc Golf Association - Records</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;606&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="main-header">
@@ -32,107 +32,46 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        function parseCustomDate(dateStr) {
-            const [datePart, timePart] = dateStr.split(' ');
-            const hours = timePart.slice(0, 2);
-            const minutes = timePart.slice(2, 4);
-            const isoDate = `${datePart}T${hours}:${minutes}`;
-            return new Date(isoDate);
-        }
-
-        function isRoundComplete(row) {
-            for (let i = 1; i <= 18; i++) {
-                const holeScore = parseInt(row[`Hole${i}`]) || 0;
-                if (holeScore === 0 || isNaN(holeScore)) return false;
-            }
-            return true;
-        }
-
-        fetch('data.csv')
-            .then(response => response.text())
-            .then(csvText => {
-                Papa.parse(csvText, {
-                    header: true,
-                    complete: function(results) {
-                        const data = results.data;
-                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                        
-                        const courseRecords = {};
-                        filteredData.forEach(row => {
-                            const key = `${row.CourseName}-${row.LayoutName}`;
-                            const total = parseInt(row.Total);
-                            const plusMinus = parseInt(row['+/-']) || 0; // Ensure +/- is included
-                            const date = parseCustomDate(row.StartDate);
-                            if (!courseRecords[key]) {
-                                courseRecords[key] = { minTotal: total, minPlusMinus: plusMinus, records: [{ player: row.PlayerName, date }] };
-                            } else {
-                                if (total < courseRecords[key].minTotal || (total === courseRecords[key].minTotal && plusMinus < courseRecords[key].minPlusMinus)) {
-                                    courseRecords[key].minTotal = total;
-                                    courseRecords[key].minPlusMinus = plusMinus;
-                                    courseRecords[key].records = [{ player: row.PlayerName, date }];
-                                } else if (total === courseRecords[key].minTotal && plusMinus === courseRecords[key].minPlusMinus) {
-                                    courseRecords[key].records.push({ player: row.PlayerName, date });
-                                }
-                            }
-                        });
-                        
-                        const courseRecordsHtml = Object.entries(courseRecords).map(([key, record]) => {
-                            const [course, layout] = key.split('-');
-                            const holders = record.records.map(r => `${r.player} on ${r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`).join(', ');
-                            return `
-                                <div class="record-card course-record">
-                                    <h3>${course} - ${layout}</h3>
-                                    <p><strong>Score:</strong> ${record.minTotal} (${record.minPlusMinus >= 0 ? '+' + record.minPlusMinus : record.minPlusMinus})</p>
-                                    <p><strong>Held by:</strong> ${holders}</p>
-                                </div>
-                            `;
-                        }).join('');
-                        document.getElementById('course-records').innerHTML = courseRecordsHtml;
-                        
-                        const personalBests = {};
-                        filteredData.forEach(row => {
-                            const key = `${row.PlayerName}-${row.CourseName}-${row.LayoutName}`;
-                            const total = parseInt(row.Total);
-                            const plusMinus = parseInt(row['+/-']) || 0; // Include +/- for bests
-                            const date = parseCustomDate(row.StartDate);
-                            if (!personalBests[key] || total < personalBests[key].minTotal) {
-                                personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
-                            } else if (total === personalBests[key].minTotal && plusMinus < personalBests[key].minPlusMinus) {
-                                personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
-                            } else if (total === personalBests[key].minTotal && plusMinus === personalBests[key].minPlusMinus && date > personalBests[key].date) {
-                                personalBests[key].date = date;
-                            }
-                        });
-                        
-                        const playerBests = {};
-                        for (const key in personalBests) {
-                            const [player, course, layout] = key.split('-');
-                            if (!playerBests[player]) {
-                                playerBests[player] = [];
-                            }
-                            playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, minPlusMinus: personalBests[key].minPlusMinus, date: personalBests[key].date });
-                        }
-                        
-                        const personalBestsHtml = Object.entries(playerBests).map(([player, bests]) => {
-                            const bestsList = bests.map(b => `
-                                <li>
-                                    <strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} (${b.minPlusMinus >= 0 ? '+' + b.minPlusMinus : b.minPlusMinus}) on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </li>
-                            `).join('');
-                            return `
-                                <div class="record-card personal-best ${player.toLowerCase()}">
-                                    <h3>${player}</h3>
-                                    <ul>${bestsList}</ul>
-                                </div>
-                            `;
-                        }).join('');
-                        document.getElementById('personal-bests').innerHTML = personalBestsHtml;
-                    }
+        function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
+        function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
+        fetch('data.csv').then(r => r.text()).then(csvText => {
+            Papa.parse(csvText, { header: true, complete: function(results) {
+                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
+                const courseRecords = {}; filteredData.forEach(row => {
+                    const key = `${row.CourseName}-${row.LayoutName}`;
+                    const total = parseInt(row.Total), plusMinus = parseInt(row['+/-']) || 0, date = parseCustomDate(row.StartDate);
+                    if (!courseRecords[key]) courseRecords[key] = { minTotal: total, minPlusMinus: plusMinus, records: [{ player: row.PlayerName, date }] };
+                    else if (total < courseRecords[key].minTotal || (total === courseRecords[key].minTotal && plusMinus < courseRecords[key].minPlusMinus)) {
+                        courseRecords[key].minTotal = total; courseRecords[key].minPlusMinus = plusMinus; courseRecords[key].records = [{ player: row.PlayerName, date }];
+                    } else if (total === courseRecords[key].minTotal && plusMinus === courseRecords[key].minPlusMinus) courseRecords[key].records.push({ player: row.PlayerName, date });
                 });
-            })
-            .catch(error => console.error('Error fetching CSV:', error));
+                const courseRecordsHtml = Object.entries(courseRecords).map(([key, record]) => {
+                    const [course, layout] = key.split('-');
+                    const holders = record.records.map(r => `${r.player} on ${r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`).join(', ');
+                    return `<div class="record-card course-record"><h3>${course} - ${layout}</h3><p><strong>Score:</strong> ${record.minTotal} (${record.minPlusMinus >= 0 ? '+' + record.minPlusMinus : record.minPlusMinus})</p><p><strong>Held by:</strong> ${holders}</p></div>`;
+                }).join('');
+                document.getElementById('course-records').innerHTML = courseRecordsHtml;
 
+                const personalBests = {}; filteredData.forEach(row => {
+                    const key = `${row.PlayerName}-${row.CourseName}-${row.LayoutName}`;
+                    const total = parseInt(row.Total), plusMinus = parseInt(row['+/-']) || 0, date = parseCustomDate(row.StartDate);
+                    if (!personalBests[key] || total < personalBests[key].minTotal) personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
+                    else if (total === personalBests[key].minTotal && plusMinus < personalBests[key].minPlusMinus) personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
+                    else if (total === personalBests[key].minTotal && plusMinus === personalBests[key].minPlusMinus && date > personalBests[key].date) personalBests[key].date = date;
+                });
+                const playerBests = {}; for (const key in personalBests) {
+                    const [player, course, layout] = key.split('-');
+                    if (!playerBests[player]) playerBests[player] = [];
+                    playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, minPlusMinus: personalBests[key].minPlusMinus, date: personalBests[key].date });
+                }
+                const personalBestsHtml = Object.entries(playerBests).map(([player, bests]) => {
+                    const bestsList = bests.map(b => `<li><strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} (${b.minPlusMinus >= 0 ? '+' + b.minPlusMinus : b.minPlusMinus}) on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</li>`).join('');
+                    return `<div class="record-card personal-best ${player.toLowerCase()}"><h3>${player}</h3><ul>${bestsList}</ul></div>`;
+                }).join('');
+                document.getElementById('personal-bests').innerHTML = personalBestsHtml;
+            } });
+        }).catch(error => console.error('Error fetching CSV:', error));
         document.querySelector('.hamburger').addEventListener('click', () => {
             const sidebar = document.querySelector('.sidebar');
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
@@ -140,3 +79,4 @@
     </script>
 </body>
 </html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

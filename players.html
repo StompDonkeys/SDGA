@@ -87,7 +87,6 @@
                             return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
                         }
 
-                        // Function to count aces (hole score of 1)
                         function countAces(rounds) {
                             let aceCount = 0;
                             rounds.forEach(round => {
@@ -98,19 +97,34 @@
                             return aceCount;
                         }
 
-                        // Function to get best score per course
                         function getBestScoresPerCourse(rounds) {
                             const bestScores = {};
                             rounds.forEach(round => {
                                 const course = round.CourseName;
                                 const total = parseInt(round.Total);
                                 const plusMinus = parseInt(round['+/-']);
-                                const date = round.StartDate.split(' ')[0]; // Just the date part
+                                const date = round.StartDate.split(' ')[0];
                                 if (!bestScores[course] || total < parseInt(bestScores[course].total)) {
                                     bestScores[course] = { total, plusMinus, date };
                                 }
                             });
                             return bestScores;
+                        }
+
+                        // Function to generate Journey Overview for ArmyGeddon
+                        function getJourneyOverview(rounds) {
+                            if (rounds.length === 0) return '';
+                            const firstRound = rounds[rounds.length - 1]; // Oldest round
+                            const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                            const validRatings = rounds
+                                .map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r }))
+                                .filter(r => r.rating > 0)
+                                .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
+                            const earlyLow = validRatings.length ? validRatings[0] : null;
+                            const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
+                            return `
+                                <p>Journey Overview: ArmyGeddon first appeared on the disc golf scene in ${firstMonthYear} and since demonstrates a clear trajectory of improvement in his disc golf performance. His RoundRating has increased over time, reflecting enhanced skill and consistency. From an early low round rating of ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to a peak round rating of ${peak.rating} when he shot ${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']} at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}, his progress is notable.</p>
+                            `;
                         }
 
                         const container = document.getElementById('player-profiles');
@@ -132,10 +146,14 @@
                             card.className = 'record-card player-profile';
                             card.style.animationDelay = `${index * 0.1}s`;
 
-                            // Convert bestScores object to array for HTML list
                             const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `
                                 <li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>
                             `).join('');
+
+                            let journeyOverview = '';
+                            if (player === 'ArmyGeddon') {
+                                journeyOverview = getJourneyOverview(rounds);
+                            }
 
                             card.innerHTML = `
                                 <h3>${player}</h3>
@@ -146,6 +164,7 @@
                                 <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
                                 <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
                                 <p><strong>Ace Count:</strong> ${aceCount}</p>
+                                ${journeyOverview}
                             `;
                             container.appendChild(card);
                         });

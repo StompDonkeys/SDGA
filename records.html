@@ -31,7 +31,7 @@
                     header: true,
                     complete: function(results) {
                         const data = results.data;
-                        const players = ['Armygeddon', 'Jobby', 'Bucis', 'Miza'];
+                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza']; // Updated casing
                         const filteredData = data.filter(row => players.includes(row.PlayerName));
                         
                         // Process course records

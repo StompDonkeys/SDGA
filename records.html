@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StompDonkey Disc Golf Association - Records</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;606&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="main-header">
@@ -56,20 +56,22 @@
                     complete: function(results) {
                         const data = results.data;
                         const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row)); // Ensure only complete rounds
+                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
                         
                         const courseRecords = {};
                         filteredData.forEach(row => {
                             const key = `${row.CourseName}-${row.LayoutName}`;
                             const total = parseInt(row.Total);
+                            const plusMinus = parseInt(row['+/-']) || 0; // Ensure +/- is included
                             const date = parseCustomDate(row.StartDate);
                             if (!courseRecords[key]) {
-                                courseRecords[key] = { minTotal: total, records: [{ player: row.PlayerName, date }] };
+                                courseRecords[key] = { minTotal: total, minPlusMinus: plusMinus, records: [{ player: row.PlayerName, date }] };
                             } else {
-                                if (total < courseRecords[key].minTotal) {
+                                if (total < courseRecords[key].minTotal || (total === courseRecords[key].minTotal && plusMinus < courseRecords[key].minPlusMinus)) {
                                     courseRecords[key].minTotal = total;
+                                    courseRecords[key].minPlusMinus = plusMinus;
                                     courseRecords[key].records = [{ player: row.PlayerName, date }];
-                                } else if (total === courseRecords[key].minTotal) {
+                                } else if (total === courseRecords[key].minTotal && plusMinus === courseRecords[key].minPlusMinus) {
                                     courseRecords[key].records.push({ player: row.PlayerName, date });
                                 }
                             }
@@ -81,7 +83,7 @@
                             return `
                                 <div class="record-card course-record">
                                     <h3>${course} - ${layout}</h3>
-                                    <p><strong>Score:</strong> ${record.minTotal}</p>
+                                    <p><strong>Score:</strong> ${record.minTotal} (${record.minPlusMinus >= 0 ? '+' + record.minPlusMinus : record.minPlusMinus})</p>
                                     <p><strong>Held by:</strong> ${holders}</p>
                                 </div>
                             `;
@@ -92,16 +94,14 @@
                         filteredData.forEach(row => {
                             const key = `${row.PlayerName}-${row.CourseName}-${row.LayoutName}`;
                             const total = parseInt(row.Total);
+                            const plusMinus = parseInt(row['+/-']) || 0; // Include +/- for bests
                             const date = parseCustomDate(row.StartDate);
-                            if (!personalBests[key]) {
-                                personalBests[key] = { minTotal: total, date };
-                            } else {
-                                if (total < personalBests[key].minTotal) {
-                                    personalBests[key].minTotal = total;
-                                    personalBests[key].date = date;
-                                } else if (total === personalBests[key].minTotal && date > personalBests[key].date) {
-                                    personalBests[key].date = date;
-                                }
+                            if (!personalBests[key] || total < personalBests[key].minTotal) {
+                                personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
+                            } else if (total === personalBests[key].minTotal && plusMinus < personalBests[key].minPlusMinus) {
+                                personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
+                            } else if (total === personalBests[key].minTotal && plusMinus === personalBests[key].minPlusMinus && date > personalBests[key].date) {
+                                personalBests[key].date = date;
                             }
                         });
                         
@@ -111,13 +111,13 @@
                             if (!playerBests[player]) {
                                 playerBests[player] = [];
                             }
-                            playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, date: personalBests[key].date });
+                            playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, minPlusMinus: personalBests[key].minPlusMinus, date: personalBests[key].date });
                         }
                         
                         const personalBestsHtml = Object.entries(playerBests).map(([player, bests]) => {
                             const bestsList = bests.map(b => `
                                 <li>
-                                    <strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    <strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} (${b.minPlusMinus >= 0 ? '+' + b.minPlusMinus : b.minPlusMinus}) on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </li>
                             `).join('');
                             return `

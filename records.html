@@ -40,6 +40,14 @@
             return new Date(isoDate);
         }
 
+        function isRoundComplete(row) {
+            for (let i = 1; i <= 18; i++) {
+                const holeScore = parseInt(row[`Hole${i}`]) || 0;
+                if (holeScore === 0 || isNaN(holeScore)) return false;
+            }
+            return true;
+        }
+
         fetch('data.csv')
             .then(response => response.text())
             .then(csvText => {
@@ -48,7 +56,7 @@
                     complete: function(results) {
                         const data = results.data;
                         const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName));
+                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row)); // Ensure only complete rounds
                         
                         const courseRecords = {};
                         filteredData.forEach(row => {

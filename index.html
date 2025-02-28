@@ -31,7 +31,7 @@
                             card.className = 'card';
                             
                             const date = new Date(row.StartDate.replace(' ', 'T'));
-                            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            const formattedDate = date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
                             
                             card.innerHTML = `
                                 <h2>${formattedDate}</h2>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StompDonkey Disc Golf Association - Podcast</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="main-header">
+        <button class="hamburger" aria-label="Toggle Menu">☰</button>
+        <h1>StompDonkey Disc Golf Association</h1>
+    </header>
+    <nav class="sidebar" style="display: none;">
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rounds.html">Rounds</a></li>
+            <li><a href="records.html">Records</a></li>
+            <li><a href="players.html">Players</a></li>
+        </ul>
+    </nav>
+    <main>
+        <section class="records-section">
+            <h2>Podcast - Episode 1</h2>
+            <div class="podcast-container">
+                <audio controls>
+                    <source src="episode1.mp3" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+                <p>Listen to the latest episode of the StompDonkey Disc Golf Podcast!</p>
+            </div>
+        </section>
+    </main>
+    <script>
+        document.querySelector('.hamburger').addEventListener('click', () => {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        });
+    </script>
+</body>
+</html>

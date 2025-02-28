@@ -17,6 +17,7 @@
             <li><a href="index.html">Home</a></li>
             <li><a href="rounds.html">Rounds</a></li>
             <li><a href="records.html">Records</a></li>
+            <li><a href="players.html">Players</a></li>
         </ul>
     </nav>
     <main>
@@ -27,7 +28,6 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        // Function to parse custom date format (YYYY-MM-DD HHMM)
         function parseCustomDate(dateStr) {
             const [datePart, timePart] = dateStr.split(' ');
             const hours = timePart.slice(0, 2);
@@ -46,7 +46,6 @@
                         const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                         const filteredData = data.filter(row => players.includes(row.PlayerName));
 
-                        // Group rounds by StartDate, CourseName, and LayoutName
                         const rounds = {};
                         filteredData.forEach(row => {
                             const key = `${row.StartDate}-${row.CourseName}-${row.LayoutName}`;
@@ -69,7 +68,6 @@
                             });
                         });
 
-                        // Convert to array and sort by date descending
                         const roundArray = Object.values(rounds);
                         roundArray.sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
 

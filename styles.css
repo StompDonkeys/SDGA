@@ -290,6 +290,23 @@ h2 {
     background-color: #e0f2e9;
 }
 
+/* Podcast Styling */
+.podcast-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.podcast-container audio {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 10px;
+}
+
+.podcast-container p {
+    font-size: 16px;
+    color: #388e3c;
+}
+
 /* Animation */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -350,5 +367,8 @@ h2 {
     }
     .home-section {
         padding-top: 10px;
+    }
+    .podcast-container audio {
+        max-width: 100%;
     }
 }

@@ -237,6 +237,11 @@ h2 {
     background: linear-gradient(135deg, #8e24aa, #6a1b9a);
 }
 
+/* Player Profile Styling */
+.player-profile h3 {
+    background: linear-gradient(135deg, #4caf50, #2e7d32); /* Green gradient for profiles */
+}
+
 /* Stats Page Specific */
 .card h2 {
     background: #2e7d32;
@@ -335,15 +340,15 @@ h2 {
     }
     .btn {
         padding: 10px 20px;
-        min-width: 120px; /* Adjusted for mobile */
+        min-width: 120px;
     }
     .logo {
-        max-height: 150px; /* Reduced for mobile */
+        max-height: 150px;
     }
     .content-container {
         padding: 0 10px;
     }
     .home-section {
-        padding-top: 10px; /* Ensure space above content */
+        padding-top: 10px;
     }
 }

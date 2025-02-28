@@ -17,12 +17,25 @@ body {
     background: linear-gradient(135deg, #4caf50, #2e7d32); /* Green gradient */
     padding: 15px 20px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     position: sticky;
     top: 0;
     z-index: 10;
+}
+
+.main-header .hamburger {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #fff;
+    cursor: pointer;
+    margin-right: 15px;
+    transition: transform 0.3s;
+}
+
+.main-header .hamburger:hover {
+    transform: scale(1.1);
 }
 
 .main-header h1 {
@@ -31,18 +44,44 @@ body {
     color: #fff;
     text-transform: uppercase;
     letter-spacing: 1px;
+    flex-grow: 1;
+    text-align: center;
 }
 
-.main-header nav a {
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 60px; /* Below header */
+    left: 0;
+    width: 200px;
+    background: #388e3c; /* Forest green */
+    padding: 20px;
+    height: calc(100% - 60px);
+    z-index: 9;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.sidebar ul {
+    list-style: none;
+}
+
+.sidebar li {
+    margin: 15px 0;
+}
+
+.sidebar a {
     color: #fff;
     text-decoration: none;
     font-weight: 600;
-    padding: 8px 15px;
+    font-size: 16px;
+    display: block;
+    padding: 10px;
     border-radius: 5px;
     transition: background-color 0.3s;
 }
 
-.main-header nav a:hover {
+.sidebar a:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -53,7 +92,7 @@ main {
     padding: 0 20px;
 }
 
-.records-section {
+.records-section, .home-section {
     margin-bottom: 40px;
 }
 
@@ -65,6 +104,34 @@ h2 {
     margin-bottom: 15px;
     padding-bottom: 5px;
     border-bottom: 3px solid #81c784; /* Light green underline */
+}
+
+/* Home Page Buttons */
+.home-section p {
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.button-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 25px;
+    transition: background 0.3s, transform 0.3s;
+}
+
+.btn:hover {
+    background: linear-gradient(135deg, #66bb6a, #4caf50);
+    transform: scale(1.05);
 }
 
 /* Record Cards (for both pages) */
@@ -93,10 +160,10 @@ h2 {
     font-family: 'Oswald', sans-serif;
     font-size: 20px;
     padding: 8px 12px;
-    margin: -15px -15px 10px -15px; /* Extend header to edges */
+    margin: -15px -15px 10px -15px;
     border-radius: 10px 10px 0 0;
     color: #fff;
-    background: #4caf50; /* Green for consistency */
+    background: #4caf50;
 }
 
 .record-card p, .card p {
@@ -111,34 +178,34 @@ h2 {
 }
 
 .record-card li strong, .card p strong {
-    color: #388e3c; /* Green for emphasis */
+    color: #388e3c;
 }
 
 /* Course Records Styling */
 .course-record h3 {
-    background: #4caf50; /* Vibrant green */
+    background: #4caf50;
 }
 
 /* Personal Bests Styling */
 .personal-best.armygeddon h3 {
-    background: linear-gradient(135deg, #d32f2f, #b71c1c); /* Red gradient */
+    background: linear-gradient(135deg, #d32f2f, #b71c1c);
 }
 
 .personal-best.jobby h3 {
-    background: linear-gradient(135deg, #1976d2, #0d47a1); /* Blue gradient */
+    background: linear-gradient(135deg, #1976d2, #0d47a1);
 }
 
 .personal-best.bucis h3 {
-    background: linear-gradient(135deg, #388e3c, #2e7d32); /* Green gradient */
+    background: linear-gradient(135deg, #388e3c, #2e7d32);
 }
 
 .personal-best.miza h3 {
-    background: linear-gradient(135deg, #8e24aa, #6a1b9a); /* Purple gradient */
+    background: linear-gradient(135deg, #8e24aa, #6a1b9a);
 }
 
 /* Stats Page Specific */
 .card h2 {
-    background: #2e7d32; /* Slightly darker green for stats */
+    background: #2e7d32;
 }
 
 .details {
@@ -166,7 +233,7 @@ h2 {
 }
 
 .details th {
-    background-color: #81c784; /* Light green */
+    background-color: #81c784;
     color: #fff;
     font-weight: 600;
 }
@@ -193,12 +260,19 @@ h2 {
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
     .main-header {
-        flex-direction: column;
         padding: 10px;
     }
     .main-header h1 {
         font-size: 22px;
-        margin-bottom: 10px;
+    }
+    .sidebar {
+        width: 150px;
+        top: 50px;
+        height: calc(100% - 50px);
+    }
+    .sidebar a {
+        font-size: 14px;
+        padding: 8px;
     }
     h2 {
         font-size: 20px;
@@ -220,5 +294,12 @@ h2 {
     }
     main {
         padding: 0 10px;
+    }
+    .button-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .btn {
+        padding: 10px 20px;
     }
 }

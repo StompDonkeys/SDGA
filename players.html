@@ -57,7 +57,7 @@
                 function countAces(rounds) { let aceCount = 0; rounds.forEach(round => { for (let i = 1; i <= 18; i++) if (parseInt(round[`Hole${i}`]) === 1) aceCount++; }); return aceCount; }
                 function getBestScoresPerCourse(rounds) {
                     const bestScores = {}; rounds.forEach(round => {
-                        const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(round['+/-']), date = round.StartDate.split(' ')[0];
+                        const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(row['+/-']), date = round.StartDate.split(' ')[0];
                         if (!bestScores[course] || total < parseInt(bestScores[course].total)) bestScores[course] = { total, plusMinus, date };
                     }); return bestScores;
                 }

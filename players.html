@@ -6,6 +6,8 @@
     <title>StompDonkey Disc Golf Association - Players</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script> <!-- Zoom plugin -->
 </head>
 <body>
     <header class="main-header">
@@ -29,11 +31,8 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
         function parseCustomDate(dateStr) {
-            const [datePart, timePart] = dateStr.split(' ');
-            const hours = timePart.slice(0, 2);
-            const minutes = timePart.slice(2, 4);
-            const isoDate = `${datePart}T${hours}:${minutes}`;
-            return new Date(isoDate);
+            const [datePart] = dateStr.split(' ');
+            return new Date(datePart);
         }
 
         function isRoundComplete(row) {
@@ -84,7 +83,7 @@
                         function getRatingMovement(current, previous) {
                             if (current === 'N/A' || previous === 'N/A') return '';
                             const diff = parseFloat(current) - parseFloat(previous);
-                            return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)'; // Removed + for negative
+                            return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
                         }
 
                         function countAces(rounds) {
@@ -143,7 +142,7 @@
 
                             const card = document.createElement('div');
                             card.className = 'record-card player-profile';
-            card.style.animationDelay = `${index * 0.1}s`;
+                            card.style.animationDelay = `${index * 0.1}s`;
 
                             const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `
                                 <li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>
@@ -152,6 +151,16 @@
                             let journeyOverview = '';
                             if (player === 'ArmyGeddon') {
                                 journeyOverview = getJourneyOverview(rounds);
+                            }
+
+                            // Prepare data for chart
+                            const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
+                            const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
+                            const movingAvgRatings = [];
+                            for (let i = 0; i < rounds.length; i++) {
+                                const window = rounds.slice(Math.max(0, i - 7), i + 1); // 8-round moving average
+                                const validRatings = window.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0);
+                                movingAvgRatings.push(validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : null);
                             }
 
                             card.innerHTML = `
@@ -164,8 +173,98 @@
                                 <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
                                 <p><strong>Ace Count:</strong> ${aceCount}</p>
                                 ${journeyOverview}
+                                <div class="chart-container">
+                                    <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
+                                </div>
                             `;
+
                             container.appendChild(card);
+
+                            // Initialize chart after card is added to DOM
+                            const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: roundDates,
+                                    datasets: [
+                                        {
+                                            label: 'Round Rating',
+                                            data: roundRatings,
+                                            borderColor: 'rgba(54, 162, 235, 1)', // Blue like UDisc
+                                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                            fill: false,
+                                            tension: 0.1,
+                                            pointRadius: 5,
+                                            pointHoverRadius: 7
+                                        },
+                                        {
+                                            label: 'Moving Average Rating (8 rounds)',
+                                            data: movingAvgRatings,
+                                            borderColor: 'rgba(255, 159, 64, 1)', // Orange like UDisc
+                                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                                            fill: false,
+                                            borderWidth: 2,
+                                            tension: 0.1,
+                                            pointRadius: 0 // No points for moving average
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: {
+                                            title: { display: true, text: 'Date', color: '#fff', font: { family: 'Oswald', size: 14 } },
+                                            ticks: { color: '#fff' }
+                                        },
+                                        y: {
+                                            title: { display: true, text: 'Rating', color: '#fff', font: { family: 'Oswald', size: 14 } },
+                                            beginAtZero: false,
+                                            min: 90,
+                                            max: 210,
+                                            ticks: { color: '#fff' }
+                                        }
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: { color: '#fff', font: { family: 'Oswald', size: 12 } }
+                                        },
+                                        tooltip: {
+                                            mode: 'index',
+                                            intersect: false,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    const round = rounds[context.dataIndex];
+                                                    return [
+                                                        `${context.dataset.label}: ${context.raw}`,
+                                                        `Score: ${round.Total}`,
+                                                        `+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}`,
+                                                        `Course: ${round.CourseName}`,
+                                                        `Date: ${round.StartDate.split(' ')[0]}`
+                                                    ];
+                                                }
+                                            },
+                                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                            titleColor: '#fff',
+                                            bodyColor: '#fff',
+                                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                                            borderWidth: 1
+                                        },
+                                        zoom: {
+                                            zoom: {
+                                                wheel: { enabled: true },
+                                                pinch: { enabled: true },
+                                                mode: 'xy'
+                                            },
+                                            pan: {
+                                                enabled: true,
+                                                mode: 'xy'
+                                            }
+                                        }
+                                    }
+                                }
+                            });
                         });
                     }
                 });
@@ -179,3 +278,4 @@
     </script>
 </body>
 </html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

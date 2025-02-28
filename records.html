@@ -8,13 +8,22 @@
 </head>
 <body>
     <h1>Disc Golf Records</h1>
-    <p><a href="index.html">Back to Stats</a></p> <!-- Link back to main page -->
+    <p><a href="index.html">Back to Stats</a></p>
     <h2>Course Records</h2>
     <div id="course-records"></div>
     <h2>Personal Bests</h2>
     <div id="personal-bests"></div>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
+        // Function to parse custom date format (YYYY-MM-DD HHMM)
+        function parseCustomDate(dateStr) {
+            const [datePart, timePart] = dateStr.split(' ');
+            const hours = timePart.slice(0, 2);
+            const minutes = timePart.slice(2, 4);
+            const isoDate = `${datePart}T${hours}:${minutes}`;
+            return new Date(isoDate);
+        }
+
         fetch('data.csv')
             .then(response => response.text())
             .then(csvText => {
@@ -30,7 +39,7 @@
                         filteredData.forEach(row => {
                             const key = `${row.CourseName}-${row.LayoutName}`;
                             const total = parseInt(row.Total);
-                            const date = new Date(row.StartDate.replace(' ', 'T'));
+                            const date = parseCustomDate(row.StartDate);
                             if (!courseRecords[key]) {
                                 courseRecords[key] = { minTotal: total, records: [{ player: row.PlayerName, date }] };
                             } else {
@@ -56,7 +65,7 @@
                         filteredData.forEach(row => {
                             const key = `${row.PlayerName}-${row.CourseName}-${row.LayoutName}`;
                             const total = parseInt(row.Total);
-                            const date = new Date(row.StartDate.replace(' ', 'T'));
+                            const date = parseCustomDate(row.StartDate);
                             if (!personalBests[key]) {
                                 personalBests[key] = { minTotal: total, date };
                             } else {
@@ -92,4 +101,3 @@
     </script>
 </body>
 </html>
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

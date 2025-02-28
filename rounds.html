@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StompDonkey Disc Golf Association - Rounds</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;606&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="main-header">
@@ -36,6 +36,20 @@
             return new Date(isoDate);
         }
 
+        function isRoundComplete(row) {
+            for (let i = 1; i <= 18; i++) {
+                const holeScore = parseInt(row[`Hole${i}`]) || 0;
+                if (holeScore === 0 || isNaN(holeScore)) return false;
+            }
+            return true;
+        }
+
+        // Function to format +/- correctly (remove + for negative)
+        function formatPlusMinus(value) {
+            const num = parseInt(value) || 0;
+            return num >= 0 ? `(+${num})` : `(${num})`;
+        }
+
         fetch('data.csv')
             .then(response => response.text())
             .then(csvText => {
@@ -44,7 +58,7 @@
                     complete: function(results) {
                         const data = results.data;
                         const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName));
+                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
 
                         const rounds = {};
                         filteredData.forEach(row => {
@@ -81,7 +95,7 @@
                             const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
                             const playerSummary = round.players.map(p => `
-                                <p><strong>${p.name}:</strong> ${p.total} (+${p.plusMinus}, Rating: ${p.rating})</p>
+                                <p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>
                             `).join('');
 
                             const holeHeaders = round.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');

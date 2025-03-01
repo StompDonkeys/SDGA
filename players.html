@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
 <body>
-    <!-- Header, Nav, and Main structure remain unchanged -->
     <header class="main-header">
         <button class="hamburger" aria-label="Toggle Menu">☰</button>
         <h1>StompDonkey Disc Golf Association</h1>
@@ -91,7 +90,6 @@
                     // Aggregate data for less clutter (e.g., monthly averages)
                     const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
                     const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
-                    const movingAvgRatings = [];
                     const dateMap = new Map();
                     rounds.forEach((round, i) => {
                         const dateKey = round.StartDate.split(' ')[0].slice(0, 7); // Group by year-month
@@ -99,7 +97,7 @@
                         dateMap.get(dateKey).ratings.push(parseInt(round.RoundRating) || 0);
                         dateMap.get(dateKey).dates.push(round.StartDate.split(' ')[0]);
                     });
-                    const aggregatedDates = Array.from(dateMap.keys());
+                    const aggregatedDates = Array.from(dateMap.keys()).reverse(); // Reverse dates to run left to right
                     const aggregatedRatings = aggregatedDates.map(key => {
                         const values = dateMap.get(key).ratings.filter(r => r > 0);
                         return values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : null;
@@ -158,7 +156,7 @@
                             scales: { 
                                 x: { 
                                     title: { display: true, text: 'Date', color: '#2e2e2e', font: { family: 'Oswald', size: 14 } }, 
-                                    ticks: { color: '#2e2e2e', maxRotation: 45, minRotation: 45 } // Rotate labels
+                                    ticks: { color: '#2e2e2e', maxRotation: 45, minRotation: 45 } 
                                 }, 
                                 y: { 
                                     title: { display: true, text: 'Rating', color: '#2e2e2e', font: { family: 'Oswald', size: 14 } }, 
@@ -169,14 +167,64 @@
                                 }
                             },
                             plugins: {
-                                legend: { position: 'top', labels: { color: '#2e2e2e', font: { family: 'Oswald', size: 12 } } },
-                                tooltip: { enabled: false }, // Disable default tooltip
+                                legend: { 
+                                    position: 'top', 
+                                    labels: { 
+                                        color: '#2e2e2e', 
+                                        font: { family: 'Oswald', size: 12 }, 
+                                        usePointStyle: false, // Use line style instead of box
+                                        generateLabels: function(chart) {
+                                            const datasets = chart.data.datasets;
+                                            return datasets.map((dataset, i) => ({
+                                                text: dataset.label,
+                                                fillStyle: dataset.backgroundColor,
+                                                strokeStyle: dataset.borderColor,
+                                                lineWidth: dataset.borderWidth || 1,
+                                                datasetIndex: i
+                                            }));
+                                        }
+                                    }
+                                },
+                                tooltip: { 
+                                    enabled: false,
+                                    external: function(context) {
+                                        const tooltip = context.tooltip;
+                                        if (tooltip.opacity === 0) return;
+                                        const index = tooltip.dataPoints[0].dataIndex;
+                                        const dateKey = aggregatedDates[index];
+                                        const round = rounds.find(r => r.StartDate.split(' ')[0].slice(0, 7) === dateKey);
+                                        let tooltipEl = document.getElementById('chartjs-tooltip');
+                                        if (!tooltipEl) {
+                                            tooltipEl = document.createElement('div');
+                                            tooltipEl.id = 'chartjs-tooltip';
+                                            tooltipEl.style.position = 'absolute';
+                                            tooltipEl.style.background = 'rgba(0, 0, 0, 0.8)';
+                                            tooltipEl.style.color = '#fff';
+                                            tooltipEl.style.padding = '5px 10px';
+                                            tooltipEl.style.borderRadius = '3px';
+                                            document.body.appendChild(tooltipEl);
+                                        }
+                                        if (round) {
+                                            const content = `
+                                                <strong>Date:</strong> ${round.StartDate.split(' ')[0]}<br>
+                                                <strong>Score:</strong> ${round.Total}<br>
+                                                <strong>+/-:</strong> ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}<br>
+                                                <strong>Rating:</strong> ${round.RoundRating || 'N/A'}<br>
+                                                <strong>Course:</strong> ${round.CourseName}
+                                            `;
+                                            tooltipEl.innerHTML = content;
+                                        }
+                                        const pos = context.chart.canvas.getBoundingClientRect();
+                                        tooltipEl.style.left = pos.left + tooltip.caretX + 'px';
+                                        tooltipEl.style.top = pos.top + tooltip.caretY + 'px';
+                                        tooltipEl.style.opacity = 1;
+                                    }
+                                },
                                 zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }, pan: { enabled: true, mode: 'xy' } }
                             },
                             onClick: (event, elements) => {
                                 if (elements.length > 0) {
                                     const index = elements[0].index;
-                                    const round = rounds.find(r => r.StartDate.split(' ')[0].slice(0, 7) === aggregatedDates[index]);
                                     chart.tooltip.setActiveElements([{ datasetIndex: 0, index }], { x: event.x, y: event.y });
                                     chart.update();
                                 }

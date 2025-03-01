@@ -5,26 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StompDonkey Disc Golf Association - Players</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Inline styles for chart containers */
-        .chart-container {
-            background-color: #f5f5f5; /* Light gray background */
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            max-width: 600px; /* Constrain width */
-            width: 100%;
-        }
-        .player-profile {
-            margin: 20px 0;
-        }
-        body {
-            background-color: #ffffff; /* White page background */
-            font-family: Arial, sans-serif;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
 <body>
     <header class="main-header">
@@ -47,94 +30,223 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        // Fetch and parse CSV data
+        function parseCustomDate(dateStr) {
+            const [datePart] = dateStr.split(' ');
+            return new Date(datePart);
+        }
+
+        function isRoundComplete(row) {
+            for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false;
+            return true;
+        }
+
         fetch('data.csv')
-            .then(response => response.text())
+            .then(r => r.text())
             .then(csvText => {
                 Papa.parse(csvText, {
                     header: true,
                     complete: function(results) {
                         const data = results.data;
-                        createPlayerCharts(data);
+                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
+                        const playerData = {};
+                        players.forEach(player => {
+                            playerData[player] = filteredData.filter(row => row.PlayerName === player).sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
+                        });
+
+                        function calculateCurrentRating(rounds) {
+                            const last20 = rounds.slice(0, 20);
+                            const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
+                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                        }
+
+                        function calculatePreviousRating(rounds) {
+                            const last20 = rounds.slice(0, 20);
+                            const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(1, 9);
+                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                        }
+
+                        function getRatingMovement(current, previous) {
+                            if (current === 'N/A' || previous === 'N/A') return '';
+                            const diff = parseFloat(current) - parseFloat(previous);
+                            return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
+                        }
+
+                        function countAces(rounds) {
+                            let aceCount = 0;
+                            rounds.forEach(round => {
+                                for (let i = 1; i <= 18; i++) if (parseInt(round[`Hole${i}`]) === 1) aceCount++;
+                            });
+                            return aceCount;
+                        }
+
+                        function getBestScoresPerCourse(rounds) {
+                            const bestScores = {};
+                            rounds.forEach(round => {
+                                const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(round['+/-']), date = round.StartDate.split(' ')[0];
+                                if (!bestScores[course] || total < parseInt(bestScores[course].total)) bestScores[course] = { total, plusMinus, date };
+                            });
+                            return bestScores;
+                        }
+
+                        function getJourneyOverview(rounds) {
+                            if (rounds.length === 0) return '';
+                            const firstRound = rounds[rounds.length - 1];
+                            const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                            const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r })).filter(r => r.rating > 0).sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
+                            const earlyLow = validRatings.length ? validRatings[0] : null;
+                            const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
+                            return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
+                        }
+
+                        const container = document.getElementById('player-profiles');
+                        players.forEach((player, index) => {
+                            const rounds = playerData[player];
+                            if (rounds.length === 0) return;
+                            const totalRounds = rounds.length;
+                            const totalScores = rounds.map(r => parseInt(r.Total) || 0).filter(s => s > 0);
+                            const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : 'N/A';
+                            const totalPlusMinus = rounds.map(r => parseInt(r['+/-']) || 0).reduce((a, b) => a + b, 0);
+                            const currentRating = calculateCurrentRating(rounds);
+                            const previousRating = calculatePreviousRating(rounds);
+                            const ratingMovement = getRatingMovement(parseFloat(currentRating) || 0, parseFloat(previousRating) || 0);
+                            const aceCount = countAces(rounds);
+                            const bestScores = getBestScoresPerCourse(rounds);
+                            const card = document.createElement('div');
+                            card.className = 'record-card player-profile';
+                            card.style.animationDelay = `${index * 0.1}s`;
+                            const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`).join('');
+                            let journeyOverview = '';
+                            if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
+                            const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
+                            const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
+                            const movingAvgRatings = [];
+                            for (let i = 0; i < rounds.length; i++) {
+                                const window = rounds.slice(Math.max(0, i - 7), i + 1);
+                                const validRatings = window.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0);
+                                movingAvgRatings.push(validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : null);
+                            }
+                            card.innerHTML = `
+                                <h3>${player}</h3>
+                                <p><strong>Rounds Played:</strong> ${totalRounds}</p>
+                                <p><strong>Average Score:</strong> ${avgScore}</p>
+                                <p><strong>Best Scores by Course:</strong></p>
+                                <ul>${bestScoresHtml}</ul>
+                                <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
+                                <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
+                                <p><strong>Ace Count:</strong> ${aceCount}</p>
+                                ${journeyOverview}
+                                <div class="chart-container">
+                                    <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
+                                </div>
+                            `;
+                            container.appendChild(card);
+                            const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: roundDates,
+                                    datasets: [
+                                        {
+                                            label: 'Round Rating',
+                                            data: roundRatings,
+                                            borderColor: 'rgba(54, 162, 235, 1)',
+                                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                            fill: false,
+                                            tension: 0.1,
+                                            pointRadius: 3, // Reduced for less clutter
+                                            pointHoverRadius: 5
+                                        },
+                                        {
+                                            label: 'Moving Average Rating (8 rounds)',
+                                            data: movingAvgRatings,
+                                            borderColor: 'rgba(255, 159, 64, 1)',
+                                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                                            fill: false,
+                                            borderWidth: 2,
+                                            tension: 0.1,
+                                            pointRadius: 0
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: {
+                                            title: { display: true, text: 'Date', color: '#000', font: { family: 'Oswald', size: 14 } },
+                                            ticks: { color: '#000' }
+                                        },
+                                        y: {
+                                            title: { display: true, text: 'Rating', color: '#000', font: { family: 'Oswald', size: 14 } },
+                                            beginAtZero: false,
+                                            min: 90,
+                                            max: 210,
+                                            ticks: { color: '#000' }
+                                        }
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: { color: '#000', font: { family: 'Oswald', size: 12 } }
+                                        },
+                                        tooltip: {
+                                            mode: 'index',
+                                            intersect: false,
+                                            callbacks: {
+                                                label: context => {
+                                                    const round = rounds[context.dataIndex];
+                                                    return [
+                                                        `${context.dataset.label}: ${context.raw}`,
+                                                        `Score: ${round.Total}`,
+                                                        `+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}`,
+                                                        `Course: ${round.CourseName}`,
+                                                        `Date: ${round.StartDate.split(' ')[0]}`
+                                                    ];
+                                                }
+                                            },
+                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                            titleColor: '#000',
+                                            bodyColor: '#000',
+                                            borderColor: 'rgba(0, 0, 0, 0.2)',
+                                            borderWidth: 1,
+                                            external: {
+                                                enabled: true,
+                                                position: 'nearest',
+                                                external: context => {
+                                                    document.addEventListener('click', (e) => {
+                                                        if (!context.chart.canvas.contains(e.target)) {
+                                                            context.tooltip.setActiveElements([], { x: 0, y: 0 });
+                                                            context.update();
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        },
+                                        zoom: {
+                                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+                                            pan: { enabled: true, mode: 'xy' }
+                                        }
+                                    },
+                                    onClick: (event, elements) => {
+                                        if (elements.length > 0) {
+                                            const index = elements[0].index;
+                                            const round = rounds[index];
+                                            alert(`Details for ${round.StartDate.split(' ')[0]}:\nScore: ${round.Total}\n+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}\nRating: ${round.RoundRating || 'N/A'}\nCourse: ${round.CourseName}`);
+                                        }
+                                    }
+                                }
+                            });
+                        });
                     }
                 });
             })
             .catch(error => console.error('Error fetching CSV:', error));
 
-        // Function to create charts for each player
-        function createPlayerCharts(data) {
-            const container = document.getElementById('player-profiles');
-            data.forEach((player, index) => {
-                // Create a card for each player
-                const card = document.createElement('div');
-                card.className = 'player-profile';
-                card.innerHTML = `
-                    <h3>${player.name || 'Player ' + (index + 1)}</h3>
-                    <div class="chart-container">
-                        <canvas id="chart-${index}"></canvas>
-                    </div>
-                `;
-                container.appendChild(card);
-
-                // Sample data (replace with actual data from your CSV)
-                const dates = ['2023-01', '2023-02', '2023-03', '2023-04', '2023-05', '2023-06'];
-                const ratings = [150, 155, 160, 158, 162, 165];
-                const averages = [152, 153, 155, 157, 159, 161];
-
-                // Create the chart
-                const ctx = document.getElementById(`chart-${index}`).getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: dates, // Replace with player.dates from CSV
-                        datasets: [
-                            {
-                                label: 'Round Rating',
-                                data: ratings, // Replace with player.roundRatings
-                                borderColor: '#4caf50', // Green
-                                backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                                fill: false,
-                                tension: 0.1,
-                                pointRadius: 2,
-                                pointHoverRadius: 4
-                            },
-                            {
-                                label: 'Moving Average (6 rounds)',
-                                data: averages, // Replace with player.movingAverages
-                                borderColor: '#81c784', // Lighter green
-                                backgroundColor: 'rgba(129, 199, 132, 0.2)',
-                                fill: false,
-                                tension: 0.1,
-                                pointRadius: 0 // No points on average line
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { display: true, text: 'Date', color: '#000' },
-                                ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
-                                grid: { display: false } // No x-axis grid
-                            },
-                            y: {
-                                title: { display: true, text: 'Rating', color: '#000' },
-                                beginAtZero: false,
-                                min: 100, // Adjust based on your data
-                                max: 200,
-                                grid: { color: 'rgba(0, 0, 0, 0.1)' } // Light y-axis grid
-                            }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            tooltip: { mode: 'index', intersect: false }
-                        }
-                    }
-                });
-            });
-        }
+        document.querySelector('.hamburger').addEventListener('click', () => {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        });
     </script>
 </body>
 </html>
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

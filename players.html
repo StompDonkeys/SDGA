@@ -30,219 +30,107 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        function parseCustomDate(dateStr) {
-            const [datePart] = dateStr.split(' ');
-            return new Date(datePart);
-        }
-
-        function isRoundComplete(row) {
-            for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false;
-            return true;
-        }
-
-        fetch('data.csv')
-            .then(r => r.text())
-            .then(csvText => {
-                Papa.parse(csvText, {
-                    header: true,
-                    complete: function(results) {
-                        const data = results.data;
-                        const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                        const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                        const playerData = {};
-                        players.forEach(player => {
-                            playerData[player] = filteredData.filter(row => row.PlayerName === player).sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
-                        });
-
-                        function calculateCurrentRating(rounds) {
-                            const last20 = rounds.slice(0, 20);
-                            const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
-                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
-                        }
-
-                        function calculatePreviousRating(rounds) {
-                            const last20 = rounds.slice(0, 20);
-                            const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(1, 9);
-                            return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
-                        }
-
-                        function getRatingMovement(current, previous) {
-                            if (current === 'N/A' || previous === 'N/A') return '';
-                            const diff = parseFloat(current) - parseFloat(previous);
-                            return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
-                        }
-
-                        function countAces(rounds) {
-                            let aceCount = 0;
-                            rounds.forEach(round => {
-                                for (let i = 1; i <= 18; i++) if (parseInt(round[`Hole${i}`]) === 1) aceCount++;
-                            });
-                            return aceCount;
-                        }
-
-                        function getBestScoresPerCourse(rounds) {
-                            const bestScores = {};
-                            rounds.forEach(round => {
-                                const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(round['+/-']), date = round.StartDate.split(' ')[0];
-                                if (!bestScores[course] || total < parseInt(bestScores[course].total)) bestScores[course] = { total, plusMinus, date };
-                            });
-                            return bestScores;
-                        }
-
-                        function getJourneyOverview(rounds) {
-                            if (rounds.length === 0) return '';
-                            const firstRound = rounds[rounds.length - 1];
-                            const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                            const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r })).filter(r => r.rating > 0).sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
-                            const earlyLow = validRatings.length ? validRatings[0] : null;
-                            const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
-                            return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
-                        }
-
-                        const container = document.getElementById('player-profiles');
-                        players.forEach((player, index) => {
-                            const rounds = playerData[player];
-                            if (rounds.length === 0) return;
-                            const totalRounds = rounds.length;
-                            const totalScores = rounds.map(r => parseInt(r.Total) || 0).filter(s => s > 0);
-                            const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : 'N/A';
-                            const totalPlusMinus = rounds.map(r => parseInt(r['+/-']) || 0).reduce((a, b) => a + b, 0);
-                            const currentRating = calculateCurrentRating(rounds);
-                            const previousRating = calculatePreviousRating(rounds);
-                            const ratingMovement = getRatingMovement(parseFloat(currentRating) || 0, parseFloat(previousRating) || 0);
-                            const aceCount = countAces(rounds);
-                            const bestScores = getBestScoresPerCourse(rounds);
-                            const card = document.createElement('div');
-                            card.className = 'record-card player-profile';
-                            card.style.animationDelay = `${index * 0.1}s`;
-                            const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`).join('');
-                            let journeyOverview = '';
-                            if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
-                            const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
-                            const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
-                            const movingAvgRatings = [];
-                            for (let i = 0; i < rounds.length; i++) {
-                                const window = rounds.slice(Math.max(0, i - 7), i + 1);
-                                const validRatings = window.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0);
-                                movingAvgRatings.push(validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : null);
-                            }
-                            card.innerHTML = `
-                                <h3>${player}</h3>
-                                <p><strong>Rounds Played:</strong> ${totalRounds}</p>
-                                <p><strong>Average Score:</strong> ${avgScore}</p>
-                                <p><strong>Best Scores by Course:</strong></p>
-                                <ul>${bestScoresHtml}</ul>
-                                <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
-                                <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
-                                <p><strong>Ace Count:</strong> ${aceCount}</p>
-                                ${journeyOverview}
-                                <div class="chart-container">
-                                    <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
-                                </div>
-                            `;
-                            container.appendChild(card);
-                            const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
-                            new Chart(ctx, {
-                                type: 'line',
-                                data: {
-                                    labels: roundDates,
-                                    datasets: [
-                                        {
-                                            label: 'Round Rating',
-                                            data: roundRatings,
-                                            borderColor: 'rgba(54, 162, 235, 1)',
-                                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                            fill: false,
-                                            tension: 0.1,
-                                            pointRadius: 3, // Reduced for less clutter
-                                            pointHoverRadius: 5
-                                        },
-                                        {
-                                            label: 'Moving Average Rating (8 rounds)',
-                                            data: movingAvgRatings,
-                                            borderColor: 'rgba(255, 159, 64, 1)',
-                                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
-                                            fill: false,
-                                            borderWidth: 2,
-                                            tension: 0.1,
-                                            pointRadius: 0
-                                        }
-                                    ]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    scales: {
-                                        x: {
-                                            title: { display: true, text: 'Date', color: '#000', font: { family: 'Oswald', size: 14 } },
-                                            ticks: { color: '#000' }
-                                        },
-                                        y: {
-                                            title: { display: true, text: 'Rating', color: '#000', font: { family: 'Oswald', size: 14 } },
-                                            beginAtZero: false,
-                                            min: 90,
-                                            max: 210,
-                                            ticks: { color: '#000' }
-                                        }
-                                    },
-                                    plugins: {
-                                        legend: {
-                                            position: 'top',
-                                            labels: { color: '#000', font: { family: 'Oswald', size: 12 } }
-                                        },
-                                        tooltip: {
-                                            mode: 'index',
-                                            intersect: false,
-                                            callbacks: {
-                                                label: context => {
-                                                    const round = rounds[context.dataIndex];
-                                                    return [
-                                                        `${context.dataset.label}: ${context.raw}`,
-                                                        `Score: ${round.Total}`,
-                                                        `+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}`,
-                                                        `Course: ${round.CourseName}`,
-                                                        `Date: ${round.StartDate.split(' ')[0]}`
-                                                    ];
-                                                }
-                                            },
-                                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                            titleColor: '#000',
-                                            bodyColor: '#000',
-                                            borderColor: 'rgba(0, 0, 0, 0.2)',
-                                            borderWidth: 1,
-                                            external: {
-                                                enabled: true,
-                                                position: 'nearest',
-                                                external: context => {
-                                                    document.addEventListener('click', (e) => {
-                                                        if (!context.chart.canvas.contains(e.target)) {
-                                                            context.tooltip.setActiveElements([], { x: 0, y: 0 });
-                                                            context.update();
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        },
-                                        zoom: {
-                                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
-                                            pan: { enabled: true, mode: 'xy' }
-                                        }
-                                    },
-                                    onClick: (event, elements) => {
-                                        if (elements.length > 0) {
-                                            const index = elements[0].index;
-                                            const round = rounds[index];
-                                            alert(`Details for ${round.StartDate.split(' ')[0]}:\nScore: ${round.Total}\n+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}\nRating: ${round.RoundRating || 'N/A'}\nCourse: ${round.CourseName}`);
-                                        }
-                                    }
-                                }
-                            });
-                        });
-                    }
+        function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
+        function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
+        fetch('data.csv').then(r => r.text()).then(csvText => {
+            Papa.parse(csvText, { header: true, complete: function(results) {
+                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
+                const playerData = {}; players.forEach(player => {
+                    playerData[player] = filteredData.filter(row => row.PlayerName === player).sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
                 });
-            })
-            .catch(error => console.error('Error fetching CSV:', error));
-
+                function calculateCurrentRating(rounds) {
+                    const last20 = rounds.slice(0, 20);
+                    const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
+                    return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                }
+                function calculatePreviousRating(rounds) {
+                    const last20 = rounds.slice(0, 20);
+                    const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(1, 9);
+                    return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                }
+                function getRatingMovement(current, previous) {
+                    if (current === 'N/A' || previous === 'N/A') return '';
+                    const diff = parseFloat(current) - parseFloat(previous);
+                    return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
+                }
+                function countAces(rounds) { let aceCount = 0; rounds.forEach(round => { for (let i = 1; i <= 18; i++) if (parseInt(round[`Hole${i}`]) === 1) aceCount++; }); return aceCount; }
+                function getBestScoresPerCourse(rounds) {
+                    const bestScores = {}; rounds.forEach(round => {
+                        const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(round['+/-']), date = round.StartDate.split(' ')[0];
+                        if (!bestScores[course] || total < parseInt(bestScores[course].total)) bestScores[course] = { total, plusMinus, date };
+                    }); return bestScores;
+                }
+                function getJourneyOverview(rounds) {
+                    if (rounds.length === 0) return '';
+                    const firstRound = rounds[rounds.length - 1];
+                    const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r })).filter(r => r.rating > 0).sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
+                    const earlyLow = validRatings.length ? validRatings[0] : null;
+                    const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
+                    return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
+                }
+                const container = document.getElementById('player-profiles');
+                players.forEach((player, index) => {
+                    const rounds = playerData[player];
+                    if (rounds.length === 0) return;
+                    const totalRounds = rounds.length;
+                    const totalScores = rounds.map(r => parseInt(r.Total) || 0).filter(s => s > 0);
+                    const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : 'N/A';
+                    const totalPlusMinus = rounds.map(r => parseInt(r['+/-']) || 0).reduce((a, b) => a + b, 0);
+                    const currentRating = calculateCurrentRating(rounds);
+                    const previousRating = calculatePreviousRating(rounds);
+                    const ratingMovement = getRatingMovement(parseFloat(currentRating) || 0, parseFloat(previousRating) || 0);
+                    const aceCount = countAces(rounds);
+                    const bestScores = getBestScoresPerCourse(rounds);
+                    const card = document.createElement('div');
+                    card.className = 'record-card player-profile'; card.style.animationDelay = `${index * 0.1}s`;
+                    const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`).join('');
+                    let journeyOverview = ''; if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
+                    const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
+                    const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
+                    const movingAvgRatings = []; for (let i = 0; i < rounds.length; i++) {
+                        const window = rounds.slice(Math.max(0, i - 7), i + 1);
+                        const validRatings = window.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0);
+                        movingAvgRatings.push(validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : null);
+                    }
+                    card.innerHTML = `
+                        <h3>${player}</h3>
+                        <p><strong>Rounds Played:</strong> ${totalRounds}</p>
+                        <p><strong>Average Score:</strong> ${avgScore}</p>
+                        <p><strong>Best Scores by Course:</strong></p>
+                        <ul>${bestScoresHtml}</ul>
+                        <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
+                        <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
+                        <p><strong>Ace Count:</strong> ${aceCount}</p>
+                        ${journeyOverview}
+                        <div class="chart-container">
+                            <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                    const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: roundDates, datasets: [
+                            { label: 'Round Rating', data: roundRatings, borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)', fill: false, tension: 0.1, pointRadius: 5, pointHoverRadius: 7 },
+                            { label: 'Moving Average Rating (8 rounds)', data: movingAvgRatings, borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.2)', fill: false, borderWidth: 2, tension: 0.1, pointRadius: 0 }
+                        ] },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { x: { title: { display: true, text: 'Date', color: '#fff', font: { family: 'Oswald', size: 14 } }, ticks: { color: '#fff' } }, y: { title: { display: true, text: 'Rating', color: '#fff', font: { family: 'Oswald', size: 14 } }, beginAtZero: false, min: 90, max: 210, ticks: { color: '#fff' } } },
+                            plugins: {
+                                legend: { position: 'top', labels: { color: '#fff', font: { family: 'Oswald', size: 12 } } },
+                                tooltip: { mode: 'index', intersect: false, callbacks: { label: context => { const round = rounds[context.dataIndex]; return [`${context.dataset.label}: ${context.raw}`, `Score: ${round.Total}`, `+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}`, `Course: ${round.CourseName}`, `Date: ${round.StartDate.split(' ')[0]}`]; } }, backgroundColor: 'rgba(0, 0, 0, 0.8)', titleColor: '#fff', bodyColor: '#fff', borderColor: 'rgba(255, 255, 255, 0.2)', borderWidth: 1 },
+                                zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }, pan: { enabled: true, mode: 'xy' } }
+                            },
+                            onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const round = rounds[index]; alert(`Details for ${round.StartDate.split(' ')[0]}:\nScore: ${round.Total}\n+/-: ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}\nRating: ${round.RoundRating || 'N/A'}\nCourse: ${round.CourseName}`); } }
+                        }
+                    });
+                });
+            } });
+        }).catch(error => console.error('Error fetching CSV:', error));
         document.querySelector('.hamburger').addEventListener('click', () => {
             const sidebar = document.querySelector('.sidebar');
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';

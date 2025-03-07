@@ -6,13 +6,13 @@
 
 body {
   font-family: 'Roboto', sans-serif;
-  background-color: #FFF8E1; /* Light cream background */
+  background-color: #FFF8E1;
   color: #2e2e2e;
   line-height: 1.6;
 }
 
 .main-header {
-  background: linear-gradient(135deg, #FFC107, #FFCA28); /* Yellow gradient */
+  background: linear-gradient(135deg, #FFC107, #FFCA28);
   padding: 15px 20px;
   display: flex;
   align-items: center;
@@ -26,7 +26,7 @@ body {
   background: none;
   border: none;
   font-size: 24px;
-  color: #fff;
+  color: #424242; /* Changed from white to dark gray */
   cursor: pointer;
   margin-right: 15px;
   transition: transform 0.3s;
@@ -39,7 +39,7 @@ body {
 .main-header h1 {
   font-family: 'Oswald', sans-serif;
   font-size: 28px;
-  color: #fff;
+  color: #424242; /* Changed from white to dark gray */
   text-transform: uppercase;
   letter-spacing: 1px;
   flex-grow: 1;
@@ -51,7 +51,7 @@ body {
   top: 60px;
   left: 0;
   width: 200px;
-  background: #FFC107; /* Primary yellow */
+  background: #FFC107;
   padding: 20px;
   height: calc(100% - 60px);
   z-index: 9;
@@ -68,7 +68,7 @@ body {
 }
 
 .sidebar a {
-  color: #fff;
+  color: #424242; /* Changed from white to dark gray */
   text-decoration: none;
   font-weight: 600;
   font-size: 16px;
@@ -96,11 +96,11 @@ main {
 h2 {
   font-family: 'Oswald', sans-serif;
   font-size: 24px;
-  color: #FFC107; /* Primary yellow */
+  color: #FFC107;
   text-transform: uppercase;
   margin-bottom: 15px;
   padding-bottom: 5px;
-  border-bottom: 3px solid #FFCA28; /* Lighter yellow */
+  border-bottom: 3px solid #FFCA28;
 }
 
 .home-section {
@@ -148,8 +148,8 @@ h2 {
 .btn {
   display: inline-block;
   padding: 12px 25px;
-  background: linear-gradient(135deg, #FFC107, #FFB300); /* Yellow gradient */
-  color: #fff;
+  background: linear-gradient(135deg, #FFC107, #FFB300);
+  color: #424242; /* Changed from white to dark gray */
   text-decoration: none;
   font-weight: 600;
   border-radius: 25px;
@@ -159,7 +159,7 @@ h2 {
 }
 
 .btn:hover {
-  background: linear-gradient(135deg, #FFCA28, #FFC107); /* Lighter yellow gradient */
+  background: linear-gradient(135deg, #FFCA28, #FFC107);
   transform: scale(1.05);
 }
 
@@ -193,8 +193,8 @@ h2 {
   padding: 8px 12px;
   margin: -15px -15px 10px -15px;
   border-radius: 10px 10px 0 0;
-  color: #fff;
-  background: #FFC107; /* Primary yellow */
+  color: #424242; /* Changed from white to dark gray */
+  background: #FFC107;
 }
 
 .record-card p,
@@ -212,35 +212,37 @@ h2 {
 
 .record-card li strong,
 .card p strong {
-  color: #FFB300; /* Darker yellow for emphasis */
+  color: #FFB300;
 }
 
 .course-record h3 {
-  background: #FFC107; /* Primary yellow */
+  background: #FFC107;
 }
 
 .personal-best.armygeddon h3 {
-  background: linear-gradient(135deg, #d32f2f, #b71c1c); /* Red (unchanged, contrasts well) */
+  background: linear-gradient(135deg, #d32f2f, #b71c1c);
 }
 
 .personal-best.jobby h3 {
-  background: linear-gradient(135deg, #1976d2, #0d47a1); /* Blue (unchanged, contrasts well) */
+  background: linear-gradient(135deg, #1976d2, #0d47a1);
 }
 
 .personal-best.bucis h3 {
-  background: linear-gradient(135deg, #FFB300, #FFCA28); /* Yellow gradient */
+  background: linear-gradient(135deg, #FFB300, #FFCA28);
+  color: #424242; /* Added for consistency */
 }
 
 .personal-best.miza h3 {
-  background: linear-gradient(135deg, #8e24aa, #6a1b9a); /* Purple (unchanged, contrasts well) */
+  background: linear-gradient(135deg, #8e24aa, #6a1b9a);
 }
 
 .player-profile h3 {
-  background: linear-gradient(135deg, #FFC107, #FFCA28); /* Yellow gradient */
+  background: linear-gradient(135deg, #FFC107, #FFCA28);
+  color: #424242; /* Changed from white to dark gray */
 }
 
 .card h2 {
-  background: #FFCA28; /* Lighter yellow */
+  background: #FFCA28;
 }
 
 .details {
@@ -249,7 +251,7 @@ h2 {
 
 .details h3 {
   font-size: 18px;
-  color: #FFB300; /* Darker yellow */
+  color: #FFB300;
   background: none;
   padding: 0;
   margin: 10px 0 5px;
@@ -269,8 +271,8 @@ h2 {
 }
 
 .details th {
-  background-color: #FFCA28; /* Lighter yellow */
-  color: #fff;
+  background-color: #FFCA28;
+  color: #424242; /* Changed from white to dark gray */
   font-weight: 600;
 }
 
@@ -284,7 +286,7 @@ h2 {
 }
 
 .details tr:hover {
-  background-color: #FFF8E1; /* Light cream on hover */
+  background-color: #FFF8E1;
 }
 
 .podcast-container {
@@ -300,7 +302,7 @@ h2 {
 
 .podcast-container p {
   font-size: 16px;
-  color: #FFB300; /* Darker yellow */
+  color: #FFB300;
 }
 
 .chart-container {

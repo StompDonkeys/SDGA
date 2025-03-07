@@ -62,6 +62,44 @@ h2 { font-family: 'Oswald', sans-serif; font-size: 24px; color: #388e3c; text-tr
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* New styles for head-to-head table and year filter */
+.player-profile table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+.player-profile th, .player-profile td {
+    padding: 8px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+.player-profile th {
+    background-color: #81c784;
+    color: #fff;
+    font-weight: 600;
+}
+.player-profile td:first-child {
+    text-align: left;
+}
+.player-profile tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+.player-profile tr:hover {
+    background-color: #e0f2e9;
+}
+.player-profile select {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+}
+
 @media (max-width: 600px) {
     .main-header { padding: 10px; }
     .main-header h1 { font-size: 22px; }
@@ -82,4 +120,9 @@ h2 { font-family: 'Oswald', sans-serif; font-size: 24px; color: #388e3c; text-tr
     .podcast-container audio { max-width: 100%; }
     .player-chart { height: 200px; }
     .chart-container { padding: 5px; }
+    /* Responsive adjustments for head-to-head table and select */
+    .player-profile table { font-size: 12px; }
+    .player-profile th, .player-profile td { padding: 5px; }
+    .player-profile select { font-size: 12px; padding: 3px; }
 }
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

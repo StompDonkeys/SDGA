@@ -32,13 +32,57 @@
     <script>
         function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
         function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
+
         fetch('data.csv').then(r => r.text()).then(csvText => {
             Papa.parse(csvText, { header: true, complete: function(results) {
-                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                const data = results.data;
+                const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                 const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                const playerData = {}; players.forEach(player => {
+                const playerData = {};
+                players.forEach(player => {
                     playerData[player] = filteredData.filter(row => row.PlayerName === player).sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
                 });
+
+                // Compute head-to-head statistics
+                const headToHead = {};
+                players.forEach(player => {
+                    headToHead[player] = {};
+                    players.forEach(opponent => {
+                        if (opponent !== player) {
+                            headToHead[player][opponent] = { wins: 0, draws: 0, losses: 0 };
+                        }
+                    });
+                });
+                const matches = {};
+                filteredData.forEach(round => {
+                    const date = round.StartDate.split(' ')[0];
+                    if (!matches[date]) {
+                        matches[date] = [];
+                    }
+                    matches[date].push({ player: round.PlayerName, total: parseInt(round.Total) });
+                });
+                Object.values(matches).forEach(match => {
+                    const playersInMatch = match.map(entry => entry.player);
+                    for (let i = 0; i < playersInMatch.length; i++) {
+                        for (let j = i + 1; j < playersInMatch.length; j++) {
+                            const playerA = playersInMatch[i];
+                            const playerB = playersInMatch[j];
+                            const scoreA = match.find(entry => entry.player === playerA).total;
+                            const scoreB = match.find(entry => entry.player === playerB).total;
+                            if (scoreA < scoreB) {
+                                headToHead[playerA][playerB].wins++;
+                                headToHead[playerB][playerA].losses++;
+                            } else if (scoreA > scoreB) {
+                                headToHead[playerA][playerB].losses++;
+                                headToHead[playerB][playerA].wins++;
+                            } else {
+                                headToHead[playerA][playerB].draws++;
+                                headToHead[playerB][playerA].draws++;
+                            }
+                        }
+                    }
+                });
+
                 function calculateCurrentRating(rounds) {
                     const last20 = rounds.slice(0, 20);
                     const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
@@ -70,6 +114,7 @@
                     const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
                     return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
                 }
+
                 const container = document.getElementById('player-profiles');
                 players.forEach((player, index) => {
                     const rounds = playerData[player];
@@ -84,20 +129,20 @@
                     const aceCount = countAces(rounds);
                     const bestScores = getBestScoresPerCourse(rounds);
                     const card = document.createElement('div');
-                    card.className = 'record-card player-profile'; card.style.animationDelay = `${index * 0.1}s`;
+                    card.className = 'record-card player-profile';
+                    card.style.animationDelay = `${index * 0.1}s`;
                     const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`).join('');
-                    let journeyOverview = ''; if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
-                    // Aggregate data for less clutter (e.g., monthly averages)
-                    const roundDates = rounds.map(r => r.StartDate.split(' ')[0]);
-                    const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
+                    let journeyOverview = '';
+                    if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
+
                     const dateMap = new Map();
-                    rounds.forEach((round, i) => {
-                        const dateKey = round.StartDate.split(' ')[0].slice(0, 7); // Group by year-month
+                    rounds.forEach((round) => {
+                        const dateKey = round.StartDate.split(' ')[0].slice(0, 7);
                         if (!dateMap.has(dateKey)) dateMap.set(dateKey, { ratings: [], dates: [] });
                         dateMap.get(dateKey).ratings.push(parseInt(round.RoundRating) || 0);
                         dateMap.get(dateKey).dates.push(round.StartDate.split(' ')[0]);
                     });
-                    const aggregatedDates = Array.from(dateMap.keys()).reverse(); // Reverse dates to run left to right
+                    const aggregatedDates = Array.from(dateMap.keys()).reverse();
                     const aggregatedRatings = aggregatedDates.map(key => {
                         const values = dateMap.get(key).ratings.filter(r => r > 0);
                         return values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : null;
@@ -106,7 +151,18 @@
                     for (let i = 0; i < aggregatedRatings.length; i++) {
                         const window = aggregatedRatings.slice(Math.max(0, i - 7), i + 1).filter(r => r !== null);
                         aggregatedMovingAvg.push(window.length ? (window.reduce((a, b) => a + parseFloat(b), 0) / window.length).toFixed(2) : null);
-                    }
+                    });
+
+                    const opponents = players.filter(p => p !== player).sort();
+                    const headToHeadHtml = opponents.map(opponent => `
+                        <tr>
+                            <td>${opponent}</td>
+                            <td>${headToHead[player][opponent].wins}</td>
+                            <td>${headToHead[player][opponent].draws}</td>
+                            <td>${headToHead[player][opponent].losses}</td>
+                        </tr>
+                    `).join('');
+
                     card.innerHTML = `
                         <h3>${player}</h3>
                         <p><strong>Rounds Played:</strong> ${totalRounds}</p>
@@ -120,8 +176,25 @@
                         <div class="chart-container">
                             <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
                         </div>
+                        <div class="details">
+                            <h3>Head-to-Head Statistics</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Opponent</th>
+                                        <th>Wins</th>
+                                        <th>Draws</th>
+                                        <th>Losses</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${headToHeadHtml}
+                                </tbody>
+                            </table>
+                        </div>
                     `;
                     container.appendChild(card);
+
                     const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
                     const chart = new Chart(ctx, {
                         type: 'line',
@@ -172,7 +245,7 @@
                                     labels: { 
                                         color: '#2e2e2e', 
                                         font: { family: 'Oswald', size: 12 }, 
-                                        usePointStyle: false, // Use line style instead of box
+                                        usePointStyle: false,
                                         generateLabels: function(chart) {
                                             const datasets = chart.data.datasets;
                                             return datasets.map((dataset, i) => ({
@@ -231,13 +304,13 @@
                             }
                         }
                     });
-                    // Hide tooltip on mouseup/touchend
                     const canvas = document.getElementById(`chart-${player.toLowerCase()}`);
                     canvas.addEventListener('mouseup', () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
                     canvas.addEventListener('touchend', () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
                 });
             } });
         }).catch(error => console.error('Error fetching CSV:', error));
+
         document.querySelector('.hamburger').addEventListener('click', () => {
             const sidebar = document.querySelector('.sidebar');
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
@@ -245,3 +318,4 @@
     </script>
 </body>
 </html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

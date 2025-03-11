@@ -30,92 +30,68 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        // New function to convert UTC to Sydney date without time
+        // Function to convert "2025-03-09 2052" UTC to Sydney date YYYY-MM-DD
         function convertToSydneyDate(utcDateStr) {
-            const [datePart, timePart] = utcDateStr.split(' ');
-            const date = new Date(`${datePart}T${timePart}:00Z`); // Treat as UTC
-            return new Intl.DateTimeFormat('en-AU', {
-                timeZone: 'Australia/Sydney',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            }).format(date).split('/').reverse().join('-');
+            try {
+                const [datePart, timePart] = utcDateStr.split(' ');
+                const hours = timePart.slice(0, 2);
+                const minutes = timePart.slice(2);
+                const utcDate = new Date(`${datePart}T${hours}:${minutes}:00Z`);
+                return new Intl.DateTimeFormat('en-AU', {
+                    timeZone: 'Australia/Sydney',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).format(utcDate).split('/').reverse().join('-');
+            } catch (e) {
+                console.error('Date conversion error:', e, 'for date:', utcDateStr);
+                return utcDateStr.split(' ')[0]; // Fallback to original date
+            }
         }
 
-        function parseCustomDate(dateStr) { 
-            const [datePart] = dateStr.split(' '); 
-            return new Date(datePart); 
-        }
-        
-        function isRoundComplete(row) { 
-            for (let i = 1; i <= 18; i++) 
-                if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) 
-                    return false; 
-            return true; 
-        }
+        function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
+        function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
         
         fetch('data.csv').then(r => r.text()).then(csvText => {
             Papa.parse(csvText, { header: true, complete: function(results) {
                 const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                 const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                const playerData = {}; 
-                players.forEach(player => {
-                    playerData[player] = filteredData.filter(row => row.PlayerName === player)
-                        .sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
+                const playerData = {}; players.forEach(player => {
+                    playerData[player] = filteredData.filter(row => row.PlayerName === player).sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
                 });
-
+                
                 function calculateCurrentRating(rounds) {
                     const last20 = rounds.slice(0, 20);
                     const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
                     return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
                 }
-                
                 function calculatePreviousRating(rounds) {
                     const last20 = rounds.slice(0, 20);
                     const validRatings = last20.map(r => parseInt(r.RoundRating) || 0).filter(r => r > 0).sort((a, b) => b - a).slice(1, 9);
                     return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
                 }
-                
                 function getRatingMovement(current, previous) {
                     if (current === 'N/A' || previous === 'N/A') return '';
                     const diff = parseFloat(current) - parseFloat(previous);
                     return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
                 }
-                
-                function countAces(rounds) { 
-                    let aceCount = 0; 
-                    rounds.forEach(round => { 
-                        for (let i = 1; i <= 18; i++) 
-                            if (parseInt(round[`Hole${i}`]) === 1) aceCount++; 
-                    }); 
-                    return aceCount; 
-                }
-                
+                function countAces(rounds) { let aceCount = 0; rounds.forEach(round => { for (let i = 1; i <= 18; i++) if (parseInt(round[`Hole${i}`]) === 1) aceCount++; }); return aceCount; }
                 function getBestScoresPerCourse(rounds) {
-                    const bestScores = {}; 
-                    rounds.forEach(round => {
-                        const course = round.CourseName, 
-                              total = parseInt(round.Total), 
-                              plusMinus = parseInt(round['+/-']), 
-                              date = convertToSydneyDate(round.StartDate); // Changed to Sydney date
-                        if (!bestScores[course] || total < parseInt(bestScores[course].total)) 
-                            bestScores[course] = { total, plusMinus, date };
-                    }); 
-                    return bestScores;
+                    const bestScores = {}; rounds.forEach(round => {
+                        const course = round.CourseName, total = parseInt(round.Total), plusMinus = parseInt(round['+/-']), date = convertToSydneyDate(round.StartDate);
+                        if (!bestScores[course] || total < parseInt(bestScores[course].total)) bestScores[course] = { total, plusMinus, date };
+                    }); return bestScores;
                 }
-                
                 function getJourneyOverview(rounds) {
                     if (rounds.length === 0) return '';
                     const firstRound = rounds[rounds.length - 1];
                     const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                    const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r }))
-                        .filter(r => r.rating > 0)
-                        .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
+                    const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r })).filter(r => r.rating > 0).sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
                     const earlyLow = validRatings.length ? validRatings[0] : null;
                     const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
                     return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
                 }
-
+                
                 const container = document.getElementById('player-profiles');
                 players.forEach((player, index) => {
                     const rounds = playerData[player];
@@ -130,20 +106,18 @@
                     const aceCount = countAces(rounds);
                     const bestScores = getBestScoresPerCourse(rounds);
                     const card = document.createElement('div');
-                    card.className = 'record-card player-profile'; 
-                    card.style.animationDelay = `${index * 0.1}s`;
+                    card.className = 'record-card player-profile'; card.style.animationDelay = `${index * 0.1}s`;
                     const bestScoresHtml = Object.entries(bestScores).map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`).join('');
-                    let journeyOverview = ''; 
-                    if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
-
-                    const roundDates = rounds.map(r => convertToSydneyDate(r.StartDate)); // Changed to Sydney date
+                    let journeyOverview = ''; if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
+                    
+                    const roundDates = rounds.map(r => convertToSydneyDate(r.StartDate));
                     const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
                     const dateMap = new Map();
                     rounds.forEach((round, i) => {
-                        const dateKey = convertToSydneyDate(round.StartDate).slice(0, 7); // Changed to Sydney date
+                        const dateKey = convertToSydneyDate(round.StartDate).slice(0, 7);
                         if (!dateMap.has(dateKey)) dateMap.set(dateKey, { ratings: [], dates: [] });
                         dateMap.get(dateKey).ratings.push(parseInt(round.RoundRating) || 0);
-                        dateMap.get(dateKey).dates.push(convertToSydneyDate(round.StartDate)); // Changed to Sydney date
+                        dateMap.get(dateKey).dates.push(convertToSydneyDate(round.StartDate));
                     });
                     const aggregatedDates = Array.from(dateMap.keys()).reverse();
                     const aggregatedRatings = aggregatedDates.map(key => {
@@ -155,7 +129,7 @@
                         const window = aggregatedRatings.slice(Math.max(0, i - 7), i + 1).filter(r => r !== null);
                         aggregatedMovingAvg.push(window.length ? (window.reduce((a, b) => a + parseFloat(b), 0) / window.length).toFixed(2) : null);
                     }
-
+                    
                     card.innerHTML = `
                         <h3>${player}</h3>
                         <p><strong>Rounds Played:</strong> ${totalRounds}</p>
@@ -171,7 +145,7 @@
                         </div>
                     `;
                     container.appendChild(card);
-
+                    
                     const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
                     const chart = new Chart(ctx, {
                         type: 'line',
@@ -242,7 +216,7 @@
                                         if (tooltip.opacity === 0) return;
                                         const index = tooltip.dataPoints[0].dataIndex;
                                         const dateKey = aggregatedDates[index];
-                                        const round = rounds.find(r => convertToSydneyDate(r.StartDate).slice(0, 7) === dateKey); // Changed to Sydney date
+                                        const round = rounds.find(r => convertToSydneyDate(r.StartDate).slice(0, 7) === dateKey);
                                         let tooltipEl = document.getElementById('chartjs-tooltip');
                                         if (!tooltipEl) {
                                             tooltipEl = document.createElement('div');
@@ -256,7 +230,7 @@
                                         }
                                         if (round) {
                                             const content = `
-                                                <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br> <!-- Changed to Sydney date -->
+                                                <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br>
                                                 <strong>Score:</strong> ${round.Total}<br>
                                                 <strong>+/-:</strong> ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}<br>
                                                 <strong>Rating:</strong> ${round.RoundRating || 'N/A'}<br>
@@ -287,7 +261,7 @@
                 });
             } });
         }).catch(error => console.error('Error fetching CSV:', error));
-
+        
         document.querySelector('.hamburger').addEventListener('click', () => {
             const sidebar = document.querySelector('.sidebar');
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';

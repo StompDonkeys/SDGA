@@ -30,9 +30,10 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
-        // Function to convert UTC to Sydney date and format as YYYY-MM-DD
+        // New function to convert UTC to Sydney date without time
         function convertToSydneyDate(utcDateStr) {
-            const date = new Date(utcDateStr);
+            const [datePart, timePart] = utcDateStr.split(' ');
+            const date = new Date(`${datePart}T${timePart}:00Z`); // Treat as UTC
             return new Intl.DateTimeFormat('en-AU', {
                 timeZone: 'Australia/Sydney',
                 year: 'numeric',
@@ -96,7 +97,7 @@
                         const course = round.CourseName, 
                               total = parseInt(round.Total), 
                               plusMinus = parseInt(round['+/-']), 
-                              date = convertToSydneyDate(round.StartDate);
+                              date = convertToSydneyDate(round.StartDate); // Changed to Sydney date
                         if (!bestScores[course] || total < parseInt(bestScores[course].total)) 
                             bestScores[course] = { total, plusMinus, date };
                     }); 
@@ -106,17 +107,13 @@
                 function getJourneyOverview(rounds) {
                     if (rounds.length === 0) return '';
                     const firstRound = rounds[rounds.length - 1];
-                    const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-AU', { 
-                        timeZone: 'Australia/Sydney', 
-                        month: 'long', 
-                        year: 'numeric' 
-                    });
+                    const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' });
                     const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r }))
                         .filter(r => r.rating > 0)
                         .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
                     const earlyLow = validRatings.length ? validRatings[0] : null;
                     const peak = validRatings.reduce((max, current) => max.rating > current.rating ? max : current, validRatings[0]);
-                    return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', month: 'long', year: 'numeric' })}.</p>`;
+                    return `<p>Journey Overview: ArmyGeddon first appeared in ${firstMonthYear} and shows improvement. His RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
                 }
 
                 const container = document.getElementById('player-profiles');
@@ -139,15 +136,14 @@
                     let journeyOverview = ''; 
                     if (player === 'ArmyGeddon') journeyOverview = getJourneyOverview(rounds);
 
-                    // Aggregate data with Sydney dates
-                    const roundDates = rounds.map(r => convertToSydneyDate(r.StartDate));
+                    const roundDates = rounds.map(r => convertToSydneyDate(r.StartDate)); // Changed to Sydney date
                     const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
                     const dateMap = new Map();
                     rounds.forEach((round, i) => {
-                        const dateKey = convertToSydneyDate(round.StartDate).slice(0, 7); // Group by year-month
+                        const dateKey = convertToSydneyDate(round.StartDate).slice(0, 7); // Changed to Sydney date
                         if (!dateMap.has(dateKey)) dateMap.set(dateKey, { ratings: [], dates: [] });
                         dateMap.get(dateKey).ratings.push(parseInt(round.RoundRating) || 0);
-                        dateMap.get(dateKey).dates.push(convertToSydneyDate(round.StartDate));
+                        dateMap.get(dateKey).dates.push(convertToSydneyDate(round.StartDate)); // Changed to Sydney date
                     });
                     const aggregatedDates = Array.from(dateMap.keys()).reverse();
                     const aggregatedRatings = aggregatedDates.map(key => {
@@ -246,7 +242,7 @@
                                         if (tooltip.opacity === 0) return;
                                         const index = tooltip.dataPoints[0].dataIndex;
                                         const dateKey = aggregatedDates[index];
-                                        const round = rounds.find(r => convertToSydneyDate(r.StartDate).slice(0, 7) === dateKey);
+                                        const round = rounds.find(r => convertToSydneyDate(r.StartDate).slice(0, 7) === dateKey); // Changed to Sydney date
                                         let tooltipEl = document.getElementById('chartjs-tooltip');
                                         if (!tooltipEl) {
                                             tooltipEl = document.createElement('div');
@@ -260,7 +256,7 @@
                                         }
                                         if (round) {
                                             const content = `
-                                                <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br>
+                                                <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br> <!-- Changed to Sydney date -->
                                                 <strong>Score:</strong> ${round.Total}<br>
                                                 <strong>+/-:</strong> ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}<br>
                                                 <strong>Rating:</strong> ${round.RoundRating || 'N/A'}<br>

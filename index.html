@@ -49,87 +49,41 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
         const sidebar = document.querySelector('.sidebar');
-document.querySelector('.hamburger').addEventListener('click', () => {
-    sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
-});
+        document.querySelector('.hamburger').addEventListener('click', () => {
+            sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        });
 
-document.querySelectorAll('.sidebar ul li a').forEach(link => {
-    link.addEventListener('click', () => {
-        sidebar.style.display = 'none';
-    });
-});
+        document.querySelectorAll('.sidebar ul li a').forEach(link => {
+            link.addEventListener('click', () => {
+                sidebar.style.display = 'none';
+            });
+        });
 
-// Function to format date string into "Month Day, Year" (e.g., "Oct 5, 2023")
-function formatDateString(dateStr) {
-    const [datePart] = dateStr.split(' '); // Get "2023-10-05" from "2023-10-05 14:30:00"
-    const [year, month, day] = datePart.split('-'); // Split into components
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`; // e.g., "Oct 5, 2023"
-}
+        function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
+        function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
+        function formatPlusMinus(value) { const num = parseInt(value) || 0; return num >= 0 ? `(+${num})` : `(${num})`; }
 
-// Check if a round is complete (unchanged)
-function isRoundComplete(row) {
-    for (let i = 1; i <= 18; i++)
-        if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false;
-    return true;
-}
-
-// Format plus/minus values (unchanged)
-function formatPlusMinus(value) {
-    const num = parseInt(value) || 0;
-    return num >= 0 ? `(+${num})` : `(${num})`;
-}
-
-fetch('data.csv')
-    .then(r => r.text())
-    .then(csvText => {
-        Papa.parse(csvText, {
-            header: true,
-            complete: function(results) {
-                const data = results.data;
-                const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+        fetch('data.csv').then(r => r.text()).then(csvText => {
+            Papa.parse(csvText, { header: true, complete: function(results) {
+                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                 const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
                 const rounds = {};
-
                 filteredData.forEach(row => {
                     const key = `${row.StartDate}-${row.CourseName}-${row.LayoutName}`;
-                    if (!rounds[key])
-                        rounds[key] = {
-                            date: row.StartDate,
-                            course: row.CourseName,
-                            layout: row.LayoutName,
-                            players: []
-                        };
-                    rounds[key].players.push({
-                        name: row.PlayerName,
-                        total: row.Total,
-                        plusMinus: row['+/-'],
-                        rating: row.RoundRating || 'N/A',
-                        holes: Object.keys(row)
-                            .filter(k => k.startsWith('Hole'))
-                            .map(k => ({ hole: k, score: row[k] }))
-                    });
+                    if (!rounds[key]) rounds[key] = { date: row.StartDate, course: row.CourseName, layout: row.LayoutName, players: [] };
+                    rounds[key].players.push({ name: row.PlayerName, total: row.Total, plusMinus: row['+/-'], rating: row.RoundRating || 'N/A', holes: Object.keys(row).filter(k => k.startsWith('Hole')).map(k => ({ hole: k, score: row[k] })) });
                 });
-
-                // Sort rounds by StartDate string in descending order
-                const roundArray = Object.values(rounds).sort((a, b) => b.date.localeCompare(a.date));
-                const latestRound = roundArray[0]; // Most recent round
-
+                const roundArray = Object.values(rounds).sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
+                const latestRound = roundArray[0]; // Get the most recent round
                 if (latestRound) {
                     const container = document.getElementById('latest-round-container');
                     const card = document.createElement('div');
                     card.className = 'card';
-
-                    // Format the date using the string function
-                    const formattedDate = formatDateString(latestRound.date);
-                    const playerSummary = latestRound.players
-                        .map(p => `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`)
-                        .join('');
+                    const date = parseCustomDate(latestRound.date);
+                    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const playerSummary = latestRound.players.map(p => `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`).join('');
                     const holeHeaders = latestRound.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
-                    const playerRows = latestRound.players
-                        .map(p => `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`)
-                        .join('');
-
+                    const playerRows = latestRound.players.map(p => `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`).join('');
                     card.innerHTML = `
                         <h2>${formattedDate} - ${latestRound.course}</h2>
                         <p><strong>Layout:</strong> ${latestRound.layout}</p>
@@ -143,20 +97,14 @@ fetch('data.csv')
                             </table>
                         </div>`;
                     container.appendChild(card);
-
                     card.querySelector('.toggle-details').addEventListener('click', () => {
                         const details = card.querySelector('.details');
                         details.style.display = details.style.display === 'none' ? 'block' : 'none';
-                        card.querySelector('.toggle-details').textContent =
-                            details.style.display === 'none' ? 'Show Details' : 'Hide Details';
+                        card.querySelector('.toggle-details').textContent = details.style.display === 'none' ? 'Show Details' : 'Hide Details';
                     });
                 }
-            }
-        });
-    })
-    .catch(error => console.error('Error fetching CSV:', error));
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+            } });
+        }).catch(error => console.error('Error fetching CSV:', error));
     </script>
 </body>
 </html>
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

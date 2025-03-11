@@ -32,46 +32,86 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
+        // Convert UTC "YYYY-MM-DD HHMM" to Sydney "YYYY-MM-DD"
+        function convertToSydneyDate(utcDateStr) {
+            const [datePart, timePart] = utcDateStr.split(' ');
+            const hours = timePart.slice(0, 2);
+            const minutes = timePart.slice(2);
+            const utcDate = new Date(Date.UTC(
+                parseInt(datePart.split('-')[0]),
+                parseInt(datePart.split('-')[1]) - 1,
+                parseInt(datePart.split('-')[2]),
+                parseInt(hours),
+                parseInt(minutes)
+            ));
+            return new Intl.DateTimeFormat('en-AU', {
+                timeZone: 'Australia/Sydney',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(utcDate).split('/').reverse().join('-');
+        }
+
         function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
         function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
+        
         fetch('data.csv').then(r => r.text()).then(csvText => {
             Papa.parse(csvText, { header: true, complete: function(results) {
                 const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
                 const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                const courseRecords = {}; filteredData.forEach(row => {
+                
+                const courseRecords = {}; 
+                filteredData.forEach(row => {
                     const key = `${row.CourseName}-${row.LayoutName}`;
                     const total = parseInt(row.Total), plusMinus = parseInt(row['+/-']) || 0, date = parseCustomDate(row.StartDate);
-                    if (!courseRecords[key]) courseRecords[key] = { minTotal: total, minPlusMinus: plusMinus, records: [{ player: row.PlayerName, date }] };
+                    if (!courseRecords[key]) 
+                        courseRecords[key] = { minTotal: total, minPlusMinus: plusMinus, records: [{ player: row.PlayerName, date, displayDate: convertToSydneyDate(row.StartDate) }] };
                     else if (total < courseRecords[key].minTotal || (total === courseRecords[key].minTotal && plusMinus < courseRecords[key].minPlusMinus)) {
-                        courseRecords[key].minTotal = total; courseRecords[key].minPlusMinus = plusMinus; courseRecords[key].records = [{ player: row.PlayerName, date }];
-                    } else if (total === courseRecords[key].minTotal && plusMinus === courseRecords[key].minPlusMinus) courseRecords[key].records.push({ player: row.PlayerName, date });
+                        courseRecords[key].minTotal = total; 
+                        courseRecords[key].minPlusMinus = plusMinus; 
+                        courseRecords[key].records = [{ player: row.PlayerName, date, displayDate: convertToSydneyDate(row.StartDate) }];
+                    } else if (total === courseRecords[key].minTotal && plusMinus === courseRecords[key].minPlusMinus) 
+                        courseRecords[key].records.push({ player: row.PlayerName, date, displayDate: convertToSydneyDate(row.StartDate) });
                 });
                 const courseRecordsHtml = Object.entries(courseRecords).map(([key, record]) => {
                     const [course, layout] = key.split('-');
-                    const holders = record.records.map(r => `${r.player} on ${r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`).join(', ');
+                    const holders = record.records.map(r => `${r.player} on ${r.displayDate}`).join(', ');
                     return `<div class="record-card course-record"><h3>${course} - ${layout}</h3><p><strong>Score:</strong> ${record.minTotal} (${record.minPlusMinus >= 0 ? '+' + record.minPlusMinus : record.minPlusMinus})</p><p><strong>Held by:</strong> ${holders}</p></div>`;
                 }).join('');
                 document.getElementById('course-records').innerHTML = courseRecordsHtml;
 
-                const personalBests = {}; filteredData.forEach(row => {
+                const personalBests = {}; 
+                filteredData.forEach(row => {
                     const key = `${row.PlayerName}-${row.CourseName}-${row.LayoutName}`;
                     const total = parseInt(row.Total), plusMinus = parseInt(row['+/-']) || 0, date = parseCustomDate(row.StartDate);
-                    if (!personalBests[key] || total < personalBests[key].minTotal) personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
-                    else if (total === personalBests[key].minTotal && plusMinus < personalBests[key].minPlusMinus) personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date };
-                    else if (total === personalBests[key].minTotal && plusMinus === personalBests[key].minPlusMinus && date > personalBests[key].date) personalBests[key].date = date;
+                    if (!personalBests[key] || total < personalBests[key].minTotal) 
+                        personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date, displayDate: convertToSydneyDate(row.StartDate) };
+                    else if (total === personalBests[key].minTotal && plusMinus < personalBests[key].minPlusMinus) 
+                        personalBests[key] = { minTotal: total, minPlusMinus: plusMinus, date, displayDate: convertToSydneyDate(row.StartDate) };
+                    else if (total === personalBests[key].minTotal && plusMinus === personalBests[key].minPlusMinus && date > personalBests[key].date) 
+                        personalBests[key].date = date, personalBests[key].displayDate = convertToSydneyDate(row.StartDate);
                 });
-                const playerBests = {}; for (const key in personalBests) {
+                const playerBests = {}; 
+                for (const key in personalBests) {
                     const [player, course, layout] = key.split('-');
                     if (!playerBests[player]) playerBests[player] = [];
-                    playerBests[player].push({ course, layout, minTotal: personalBests[key].minTotal, minPlusMinus: personalBests[key].minPlusMinus, date: personalBests[key].date });
+                    playerBests[player].push({ 
+                        course, 
+                        layout, 
+                        minTotal: personalBests[key].minTotal, 
+                        minPlusMinus: personalBests[key].minPlusMinus, 
+                        date: personalBests[key].date,
+                        displayDate: personalBests[key].displayDate 
+                    });
                 }
                 const personalBestsHtml = Object.entries(playerBests).map(([player, bests]) => {
-                    const bestsList = bests.map(b => `<li><strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} (${b.minPlusMinus >= 0 ? '+' + b.minPlusMinus : b.minPlusMinus}) on ${b.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</li>`).join('');
+                    const bestsList = bests.map(b => `<li><strong>${b.course} - ${b.layout}</strong>: ${b.minTotal} (${b.minPlusMinus >= 0 ? '+' + b.minPlusMinus : b.minPlusMinus}) on ${b.displayDate}</li>`).join('');
                     return `<div class="record-card personal-best ${player.toLowerCase()}"><h3>${player}</h3><ul>${bestsList}</ul></div>`;
                 }).join('');
                 document.getElementById('personal-bests').innerHTML = personalBestsHtml;
             } });
         }).catch(error => console.error('Error fetching CSV:', error));
+        
         document.querySelector('.hamburger').addEventListener('click', () => {
             const sidebar = document.querySelector('.sidebar');
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
@@ -79,3 +119,4 @@
     </script>
 </body>
 </html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

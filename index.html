@@ -59,9 +59,31 @@
             });
         });
 
-        function parseCustomDate(dateStr) { const [datePart] = dateStr.split(' '); return new Date(datePart); }
-        function isRoundComplete(row) { for (let i = 1; i <= 18; i++) if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false; return true; }
-        function formatPlusMinus(value) { const num = parseInt(value) || 0; return num >= 0 ? `(+${num})` : `(${num})`; }
+        function parseCustomDate(dateStr) { 
+            const [datePart] = dateStr.split(' '); 
+            return new Date(datePart); 
+        }
+        
+        function formatSydneyDate(utcDate) {
+            return utcDate.toLocaleDateString('en-AU', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric', 
+                timeZone: 'Australia/Sydney' 
+            });
+        }
+        
+        function isRoundComplete(row) { 
+            for (let i = 1; i <= 18; i++) 
+                if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) 
+                    return false; 
+            return true; 
+        }
+        
+        function formatPlusMinus(value) { 
+            const num = parseInt(value) || 0; 
+            return num >= 0 ? `(+${num})` : `(${num})`; 
+        }
 
         fetch('data.csv').then(r => r.text()).then(csvText => {
             Papa.parse(csvText, { header: true, complete: function(results) {
@@ -71,7 +93,13 @@
                 filteredData.forEach(row => {
                     const key = `${row.StartDate}-${row.CourseName}-${row.LayoutName}`;
                     if (!rounds[key]) rounds[key] = { date: row.StartDate, course: row.CourseName, layout: row.LayoutName, players: [] };
-                    rounds[key].players.push({ name: row.PlayerName, total: row.Total, plusMinus: row['+/-'], rating: row.RoundRating || 'N/A', holes: Object.keys(row).filter(k => k.startsWith('Hole')).map(k => ({ hole: k, score: row[k] })) });
+                    rounds[key].players.push({ 
+                        name: row.PlayerName, 
+                        total: row.Total, 
+                        plusMinus: row['+/-'], 
+                        rating: row.RoundRating || 'N/A', 
+                        holes: Object.keys(row).filter(k => k.startsWith('Hole')).map(k => ({ hole: k, score: row[k] })) 
+                    });
                 });
                 const roundArray = Object.values(rounds).sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
                 const latestRound = roundArray[0]; // Get the most recent round
@@ -80,7 +108,7 @@
                     const card = document.createElement('div');
                     card.className = 'card';
                     const date = parseCustomDate(latestRound.date);
-                    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const formattedDate = formatSydneyDate(date);
                     const playerSummary = latestRound.players.map(p => `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`).join('');
                     const holeHeaders = latestRound.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
                     const playerRows = latestRound.players.map(p => `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`).join('');
@@ -108,3 +136,4 @@
     </script>
 </body>
 </html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​

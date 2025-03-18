@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -30,11 +30,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone-with-data.min.js"></script>
     <script>
-        // Updated to parse UTC date and convert to Sydney time
         function parseCustomDate(dateStr) {
-            // Input: "2025-03-09 2052" (UTC)
-            const formattedUtc = dateStr.replace(/(\d{4}-\d{2}-\d{2}) (\d{2})(\d{2})/, "$1T$2:$3:00Z"); // "2025-03-09T20:52:00Z"
-            return moment.tz(formattedUtc, "UTC"); // Parse as UTC, return Moment object
+            const formattedUtc = dateStr.replace(/(\d{4}-\d{2}-\d{2}) (\d{2})(\d{2})/, "$1T$2:$3:00Z");
+            return moment.tz(formattedUtc, "UTC");
         }
 
         function isRoundComplete(row) { 
@@ -53,40 +51,64 @@
             Papa.parse(csvText, { 
                 header: true, 
                 complete: function(results) {
-                    const data = results.data, 
-                          players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                    const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
+                    const data = results.data;
+                    const players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                    const filteredData = data.filter(row => 
+                        (players.includes(row.PlayerName) || row.PlayerName === 'Par') && 
+                        isRoundComplete(row)
+                    );
                     const rounds = {}; 
+
                     filteredData.forEach(row => {
                         const key = `${row.StartDate}-${row.CourseName}-${row.LayoutName}`;
-                        if (!rounds[key]) 
+                        if (!rounds[key]) {
                             rounds[key] = { 
                                 date: row.StartDate, 
                                 course: row.CourseName, 
                                 layout: row.LayoutName, 
-                                players: [] 
+                                players: [],
+                                pars: []
                             };
-                        rounds[key].players.push({ 
-                            name: row.PlayerName, 
-                            total: row.Total, 
-                            plusMinus: row['+/-'], 
-                            rating: row.RoundRating || 'N/A', 
-                            holes: Object.keys(row).filter(k => k.startsWith('Hole')).map(k => ({ hole: k, score: row[k] })) 
-                        });
+                        }
+                        
+                        const holeScores = Object.keys(row)
+                            .filter(k => k.startsWith('Hole'))
+                            .map(k => ({ hole: k, score: row[k] }));
+
+                        if (row.PlayerName === 'Par') {
+                            rounds[key].pars = holeScores;
+                        } else if (players.includes(row.PlayerName)) {
+                            rounds[key].players.push({ 
+                                name: row.PlayerName, 
+                                total: row.Total, 
+                                plusMinus: row['+/-'], 
+                                rating: row.RoundRating || 'N/A', 
+                                holes: holeScores 
+                            });
+                        }
                     });
 
-                    const roundArray = Object.values(rounds).sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
+                    const roundArray = Object.values(rounds)
+                        .filter(round => round.pars.length > 0) // Ensure we have par data
+                        .sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
+                    
                     const container = document.getElementById('stats-container');
                     roundArray.forEach((round, index) => {
                         const card = document.createElement('div');
                         card.className = 'card'; 
                         card.style.animationDelay = `${index * 0.1}s`;
                         const date = parseCustomDate(round.date);
-                        // Convert to Sydney time and format
                         const sydneyDate = date.tz("Australia/Sydney").format("MMM D, YYYY [at] HH:mm");
-                        const playerSummary = round.players.map(p => `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`).join('');
+                        const playerSummary = round.players.map(p => 
+                            `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`
+                        ).join('');
+                        
                         const holeHeaders = round.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
-                        const playerRows = round.players.map(p => `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`).join('');
+                        const parRow = `<tr><td>Par</td>${round.pars.map(p => `<td>${p.score}</td>`).join('')}</tr>`;
+                        const playerRows = round.players.map(p => 
+                            `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`
+                        ).join('');
+                        
                         card.innerHTML = `
                             <h2>${sydneyDate} - ${round.course}</h2>
                             <p><strong>Layout:</strong> ${round.layout}</p>
@@ -94,7 +116,8 @@
                             <button class="toggle-details">Show Details</button>
                             <div class="details" style="display:none">
                                 <h3>Hole Scores</h3>
-                                <table><thead><tr><th>Player</th>${holeHeaders}</tr></thead><tbody>${playerRows}</tbody></table>
+                                <table><thead><tr><th>Player</th>${holeHeaders}</tr></thead>
+                                <tbody>${parRow}${playerRows}</tbody></table>
                             </div>`;
                         container.appendChild(card);
                     });

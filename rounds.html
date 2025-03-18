@@ -89,11 +89,12 @@
                     });
 
                     const roundArray = Object.values(rounds)
-                        .filter(round => round.pars.length > 0) // Ensure we have par data
                         .sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
                     
                     const container = document.getElementById('stats-container');
                     roundArray.forEach((round, index) => {
+                        if (round.players.length === 0) return; // Skip if no players
+
                         const card = document.createElement('div');
                         card.className = 'card'; 
                         card.style.animationDelay = `${index * 0.1}s`;
@@ -104,7 +105,9 @@
                         ).join('');
                         
                         const holeHeaders = round.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
-                        const parRow = `<tr><td>Par</td>${round.pars.map(p => `<td>${p.score}</td>`).join('')}</tr>`;
+                        const parRow = round.pars.length > 0 
+                            ? `<tr><td>Par</td>${round.pars.map(p => `<td>${p.score}</td>`).join('')}</tr>`
+                            : '';
                         const playerRows = round.players.map(p => 
                             `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`
                         ).join('');
@@ -122,9 +125,13 @@
                         container.appendChild(card);
                     });
 
-                    document.querySelectorAll('.toggle-details').forEach(button => {
+                    // Verify buttons exist and add event listeners
+                    const buttons = document.querySelectorAll('.toggle-details');
+                    console.log(`Found ${buttons.length} toggle buttons`);
+                    buttons.forEach((button, idx) => {
                         button.addEventListener('click', () => {
                             const details = button.nextElementSibling;
+                            console.log(`Button ${idx} clicked, details display: ${details.style.display}`);
                             details.style.display = details.style.display === 'none' ? 'block' : 'none';
                             button.textContent = details.style.display === 'none' ? 'Show Details' : 'Hide Details';
                         });

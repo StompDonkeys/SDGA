@@ -416,4 +416,35 @@ h2 {
     padding: 5px;
   }
 }
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​#putting-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+#putting-table th,
+#putting-table td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#putting-table th {
+    background-color: #FFCA28;
+    color: #424242;
+    font-weight: 600;
+}
+
+#putting-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#putting-table tr:hover {
+    background-color: #FFF8E1;
+}
+
+#no-data-message {
+    font-size: 16px;
+    color: #FFB300;
+    text-align: center;
+}

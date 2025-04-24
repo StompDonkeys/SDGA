@@ -24,32 +24,28 @@
     </nav>
     <main>
         <section class="home-section">
-            <div class="logo-container">
-                <img src="sdga-logo.png" alt="StompDonkey Disc Golf Association Logo" class="logo">
-            </div>
             <div class="content-container">
-                <h2>Welcome to StompDonkey Disc Golf</h2>
-                <p>Track our disc golf adventures and check out the best performances!</p>
+                <div class="logo-container">
+                    <img src="sdga-logo.png" alt="SDGA Logo" class="logo">
+                </div>
+                <h2>Welcome to SDGA</h2>
+                <p>Join us for exciting disc golf action at the StompDonkey Disc Golf Association. Check out our latest rounds, player stats, and more!</p>
                 <div class="button-container">
                     <a href="rounds.html" class="btn">View Rounds</a>
                     <a href="records.html" class="btn">View Records</a>
                     <a href="players.html" class="btn">Player Profiles</a>
-                    <a href="podcast.html" class="btn">Podcast</a>
                     <a href="trends.html" class="btn">Performance Trends</a>
                 </div>
             </div>
         </section>
-        <section class="home-section">
+        <section class="records-section">
             <h2>Latest Round</h2>
-            <div id="latest-round-container" class="records-container"></div>
-        </section>
-        <section class="home-section">
-            <h2>Latest Update</h2>
-            <p>** Episode 2 of The StompDonkey Disc Golf Pod is live **</p>
+            <div id="latest-round" class="records-container"></div>
         </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script>
+        // Sidebar toggle
         const sidebar = document.querySelector('.sidebar');
         document.querySelector('.hamburger').addEventListener('click', () => {
             sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
@@ -61,86 +57,94 @@
             });
         });
 
-        // Parse the UTC date string (e.g., "2025-03-09 2052") and convert to Sydney time
+        // Function to convert "2025-03-09 2052" UTC to Sydney date
+        function convertToSydneyDate(utcDateStr) {
+            try {
+                const [datePart, timePart] = utcDateStr.split(' ');
+                const hours = timePart.slice(0, 2);
+                const minutes = timePart.slice(2);
+                const utcDate = new Date(`${datePart}T${hours}:${minutes}:00Z`);
+                return new Intl.DateTimeFormat('en-AU', {
+                    timeZone: 'Australia/Sydney',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                }).format(utcDate);
+            } catch (e) {
+                console.error('Date conversion error:', e, 'for date:', utcDateStr);
+                return utcDateStr;
+            }
+        }
+
         function parseCustomDate(dateStr) {
-            const [datePart, timePart] = dateStr.split(' ');
-            const year = datePart.split('-')[0];
-            const month = datePart.split('-')[1] - 1; // Month is 0-based in JS
-            const day = datePart.split('-')[2];
-            const hours = timePart.slice(0, 2);
-            const minutes = timePart.slice(2);
-            return new Date(Date.UTC(year, month, day, hours, minutes));
+            const [datePart] = dateStr.split(' ');
+            return new Date(datePart);
         }
 
         function isRoundComplete(row) {
-            for (let i = 1; i <= 18; i++) 
-                if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) return false;
+            for (let i = 1; i <= 18; i++) {
+                if (parseInt(row[`Hole${i}`]) === 0 || isNaN(parseInt(row[`Hole${i}`]))) {
+                    return false;
+                }
+            }
             return true;
         }
 
-        function formatPlusMinus(value) {
-            const num = parseInt(value) || 0;
-            return num >= 0 ? `(+${num})` : `(${num})`;
-        }
+        fetch('data.csv').then(response => response.text()).then(csvText => {
+            Papa.parse(csvText, {
+                header: true,
+                complete: function(results) {
+                    const data = results.data;
+                    const players = ['ArmyGeddon', 'Jobby', 'Youare22', 'Miza', 'Bucis'];
+                    const filteredData = data.filter(row => 
+                        players.includes(row.PlayerName) && 
+                        isRoundComplete(row)
+                    );
 
-        fetch('data.csv').then(r => r.text()).then(csvText => {
-            Papa.parse(csvText, { header: true, complete: function(results) {
-                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
-                const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
-                const rounds = {};
-                filteredData.forEach(row => {
-                    const key = `${row.StartDate}-${row.CourseName}-${row.LayoutName}`;
-                    if (!rounds[key]) rounds[key] = { date: row.StartDate, course: row.CourseName, layout: row.LayoutName, players: [] };
-                    rounds[key].players.push({ 
-                        name: row.PlayerName, 
-                        total: row.Total, 
-                        plusMinus: row['+/-'], 
-                        rating: row.RoundRating || 'N/A', 
-                        holes: Object.keys(row).filter(k => k.startsWith('Hole')).map(k => ({ hole: k, score: row[k] })) 
+                    const roundsByDate = {};
+                    filteredData.forEach(row => {
+                        const dateKey = row.StartDate;
+                        if (!roundsByDate[dateKey]) {
+                            roundsByDate[dateKey] = [];
+                        }
+                        roundsByDate[dateKey].push(row);
                     });
-                });
-                const roundArray = Object.values(rounds).sort((a, b) => parseCustomDate(b.date) - parseCustomDate(a.date));
-                const latestRound = roundArray[0]; // Get the most recent round
-                if (latestRound) {
-                    const container = document.getElementById('latest-round-container');
+
+                    const latestDate = Object.keys(roundsByDate).sort((a, b) => 
+                        parseCustomDate(b) - parseCustomDate(a)
+                    )[0];
+
+                    const latestRounds = roundsByDate[latestDate] || [];
+                    const container = document.getElementById('latest-round');
+
+                    if (latestRounds.length === 0) {
+                        container.innerHTML = '<p>No rounds available.</p>';
+                        return;
+                    }
+
                     const card = document.createElement('div');
-                    card.className = 'card';
-                    const date = parseCustomDate(latestRound.date);
-                    
-                    // Format the date and time for Sydney/Australia
-                    const formattedDate = new Intl.DateTimeFormat('en-AU', {
-                        timeZone: 'Australia/Sydney',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
-                    }).format(date);
+                    card.className = 'record-card';
+                    const date = convertToSydneyDate(latestDate);
+                    let roundHtml = `<h3>Latest Round: ${date}</h3>`;
+                    roundHtml += `<p><strong>Course:</strong> ${latestRounds[0].CourseName}</p>`;
+                    roundHtml += `<p><strong>Layout:</strong> ${latestRounds[0].LayoutName}</p>`;
 
-                    const playerSummary = latestRound.players.map(p => `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`).join('');
-                    const holeHeaders = latestRound.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
-                    const playerRows = latestRound.players.map(p => `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`).join('');
-                    card.innerHTML = `
-                        <h2>${formattedDate} - ${latestRound.course}</h2>
-                        <p><strong>Layout:</strong> ${latestRound.layout}</p>
-                        ${playerSummary}
-                        <button class="toggle-details">Show Details</button>
-                        <div class="details" style="display:none">
-                            <h3>Hole Scores</h3>
-                            <table>
-                                <thead><tr><th>Player</th>${holeHeaders}</tr></thead>
-                                <tbody>${playerRows}</tbody>
-                            </table>
-                        </div>`;
-                    container.appendChild(card);
-                    card.querySelector('.toggle-details').addEventListener('click', () => {
-                        const details = card.querySelector('.details');
-                        details.style.display = details.style.display === 'none' ? 'block' : 'none';
-                        card.querySelector('.toggle-details').textContent = details.style.display === 'none' ? 'Show Details' : 'Hide Details';
+                    players.forEach(player => {
+                        const playerRound = latestRounds.find(row => row.PlayerName === player);
+                        if (playerRound) {
+                            roundHtml += `
+                                <p><strong>${player}:</strong> ${playerRound.Total} (${playerRound['+/-'] >= 0 ? '+' : ''}${playerRound['+/-']}), Rating: ${playerRound.RoundRating || 'N/A'}</p>
+                            `;
+                        }
                     });
+
+                    card.innerHTML = roundHtml;
+                    container.appendChild(card);
                 }
-            } });
+            });
         }).catch(error => console.error('Error fetching CSV:', error));
     </script>
 </body>

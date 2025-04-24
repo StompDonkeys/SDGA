@@ -56,7 +56,7 @@ body {
   height: calc(100% - 60px);
   z-index: 9;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease; /* Kept for potential future use */
 }
 
 .sidebar ul {
@@ -254,15 +254,179 @@ h2 {
   font-size: 18px;
   color: #FFB300;
   background: none;
-  padding: ://github.com/<username>/<repository>`) to confirm:
-     - The sidebar and button container on `index.html` include the “Performance Trends” link.
-     - Clicking “Performance Trends” loads `trends.html` with the handicap table and chart.
-     - The chart renders correctly (requires internet for Chart.js CDN).
-     - Styling (e.g., yellow headers, card shadows) is consistent.
+  padding: 0;
+  margin: 10px 0 5px;
+}
 
----
+.details table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
 
-### Notes and Considerations
-- **Original `styles.css` Compatibility**: If you choose not to update `styles.css`, the original version is fully compatible with `index.html` and `trends.html`. The `.trends-section` and `.player-chart` tweaks are optional enhancements.
-- **Sidebar Behavior**: Both `index.html` and `trends.html` now use `display: none` for the sidebar toggle (consistent with your `index.html`). If you prefer the `transform: translateX(-100%)` approach from your original sidebar example, I can update both pages’ HTML and JavaScript to match.
-- **Chart Data**: The `trends.html` chart uses a sample dataset (4–5 rounds per player). If you want the full 121 rounds, I can provide a CSV/JSON file or inline the data. Example CSV:
+.details th,
+.details td {
+  padding: 8px;
+  text-align: center;
+  border: 1px solid #ddd;
+}
+
+.details th {
+  background-color: #FFCA28;
+  color: #424242;
+  font-weight: 600;
+}
+
+.details td:first-child {
+  font-weight: bold;
+  text-align: left;
+}
+
+.details tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.details tr:hover {
+  background-color: #FFF8E1;
+}
+
+.podcast-container {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.podcast-container audio {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 10px;
+}
+
+.podcast-container p {
+  font-size: 16px;
+  color: #FFB300;
+}
+
+.chart-container {
+  margin-top: 20px;
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.player-chart {
+  max-width: 100%;
+  height: 300px; /* Adjusted for better readability on trends page */
+  margin: 0 auto;
+}
+
+/* Added for trends page chart legend */
+.chart-legend {
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  color: #2e2e2e;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .main-header {
+    padding: 10px;
+  }
+
+  .main-header h1 {
+    font-size: 22px;
+  }
+
+  .sidebar {
+    width: 150px;
+    top: 50px;
+    height: calc(100% - 50px);
+  }
+
+  .sidebar a {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  .record-card h3,
+  .card h2 {
+    font-size: 18px;
+  }
+
+  .record-card p,
+  .card p {
+    font-size: 14px;
+  }
+
+  .details table {
+    font-size: 12px;
+  }
+
+  .details th,
+  .details td {
+    padding: 5px;
+  }
+
+  .record-card,
+  .card {
+    padding: 10px;
+  }
+
+  main {
+    padding: 0 10px;
+  }
+
+  .button-container {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    min-width: 120px;
+  }
+
+  .logo {
+    max-height: 150px;
+  }
+
+  .content-container {
+    padding: 0 10px;
+  }
+
+  .home-section {
+    padding-top: 10px;
+  }
+
+  .podcast-container audio {
+    max-width: 100%;
+  }
+
+  .player-chart {
+    height: 200px; /* Adjusted for mobile */
+  }
+
+  .chart-container {
+    padding: 5px;
+  }
+
+  .chart-legend { /* Added for trends page */
+    font-size: 10px;
+  }
+}

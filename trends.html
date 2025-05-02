@@ -141,6 +141,11 @@
       <div class="filter-container">
         <select id="playerFilter" aria-label="Select Player">
           <option value="">Select Player</option>
+          <option value="ArmyGeddon">ArmyGeddon</option>
+          <option value="Jobby">Jobby</option>
+          <option value="Bucis">Bucis</option>
+          <option value="Miza">Miza</option>
+          <option value="Youare22">Youare22</option>
         </select>
         <select id="courseFilter" aria-label="Select Course">
           <option value="">Select Course</option>
@@ -202,18 +207,12 @@
           header: true,
           complete: function(results) {
             const data = results.data.filter(row => isRoundComplete(row) && row.PlayerName !== 'Par');
-            const players = [...new Set(data.map(row => row.PlayerName))].sort();
-            const courses = [...new Set(data.map(row => row.CourseName))].sort();
+            const allowedPlayers = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza', 'Youare22'];
+            const filteredData = data.filter(row => allowedPlayers.includes(row.PlayerName));
+            const courses = [...new Set(filteredData.map(row => row.CourseName))].sort();
 
-            // Populate filter dropdowns
-            const playerFilter = document.getElementById('playerFilter');
+            // Populate course filter dropdown
             const courseFilter = document.getElementById('courseFilter');
-            players.forEach(player => {
-              const option = document.createElement('option');
-              option.value = player;
-              option.textContent = player;
-              playerFilter.appendChild(option);
-            });
             courses.forEach(course => {
               const option = document.createElement('option');
               option.value = course;
@@ -223,12 +222,12 @@
 
             // Update chart based on filter selection
             function updateChart() {
-              const selectedPlayer = playerFilter.value;
+              const selectedPlayer = document.getElementById('playerFilter').value;
               const selectedCourse = courseFilter.value;
               document.getElementById('errorMessage').style.display = 'none';
 
               // Filter data
-              const filteredData = data
+              const chartData = filteredData
                 .filter(
                   row =>
                     (!selectedPlayer || row.PlayerName === selectedPlayer) &&
@@ -251,7 +250,7 @@
                 data: {
                   datasets: [{
                     label: selectedPlayer || 'All Players',
-                    data: filteredData,
+                    data: chartData,
                     borderColor: 'rgba(25, 118, 210, 1)',
                     backgroundColor: 'rgba(25, 118, 210, 0.2)',
                     fill: false,
@@ -310,7 +309,7 @@
             }
 
             // Add event listeners for filters
-            playerFilter.addEventListener('change', updateChart);
+            document.getElementById('playerFilter').addEventListener('change', updateChart);
             courseFilter.addEventListener('change', updateChart);
 
             // Initial chart render

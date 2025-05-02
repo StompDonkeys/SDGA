@@ -63,6 +63,12 @@
             }
         }
 
+        // Function to format plus/minus scores correctly
+        function formatPlusMinus(value) {
+            const num = parseInt(value) || 0;
+            return num >= 0 ? `(+${num})` : `(${num})`;
+        }
+
         function parseCustomDate(dateStr) { 
             const [datePart] = dateStr.split(' '); 
             return new Date(datePart); 
@@ -153,7 +159,9 @@
                         const earlyLow = validRatings.length ? validRatings[0] : null;
                         const peak = validRatings.reduce((max, current) => 
                             max.rating > current.rating ? max : current, validRatings[0]);
-                        return `<p>Journey Overview: ${playerName} first appeared in ${firstMonthYear} and shows improvement. Their RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} (${peak['+/-'] > 0 ? '+' + peak['+/-'] : peak['+/-']}) at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
+                        // Use formatPlusMinus to ensure correct display of negative scores
+                        const peakPlusMinus = formatPlusMinus(peak['+/-']);
+                        return `<p>Journey Overview: ${playerName} first appeared in ${firstMonthYear} and shows improvement. Their RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} ${peakPlusMinus} at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
                     }
                 
                     const container = document.getElementById('player-profiles');
@@ -179,7 +187,7 @@
                         card.className = 'record-card player-profile'; 
                         card.style.animationDelay = `${index * 0.1}s`;
                         const bestScoresHtml = Object.entries(bestScores)
-                            .map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} (+${data.plusMinus}) on ${data.date}</li>`)
+                            .map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} ${formatPlusMinus(data.plusMinus)} on ${data.date}</li>`)
                             .join('');
                         const journeyOverview = getJourneyOverview(player, rounds);
                     
@@ -308,8 +316,7 @@
                                                 if (round) {
                                                     const content = `
                                                         <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br>
-                                                        <strong>Score:</strong> ${round.Total}<br>
-                                                        <strong>+/-:</strong> ${round['+/-'] >= 0 ? '+' + round['+/-'] : round['+/-']}<br>
+                                                        <strong>Score:</strong> ${round.Total} ${formatPlusMinus(round['+/-'])}<br>
                                                         <strong>Rating:</strong> ${round.RoundRating || 'N/A'}<br>
                                                         <strong>Course:</strong> ${round.CourseName}
                                                     `;

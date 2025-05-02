@@ -6,6 +6,22 @@
     <title>StompDonkey Disc Golf Association - Rounds</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Add color-coded styles for hole scores */
+        .birdie {
+            background-color: #66B2FF; /* Light blue for birdie */
+            color: #000;
+        }
+        .bogey {
+            background-color: #FF9999; /* Light red/pink for bogey */
+            color: #000;
+        }
+        /* Ensure table cells have some padding and alignment for readability */
+        .details td {
+            padding: 8px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -87,7 +103,7 @@
                         
                         const holeScores = Object.keys(row)
                             .filter(k => k.startsWith('Hole'))
-                            .map(k => ({ hole: k, score: row[k] }));
+                            .map(k => ({ hole: k, score: parseInt(row[k]) }));
 
                         if (row.PlayerName === 'Par') {
                             rounds[key].pars = holeScores;
@@ -122,9 +138,22 @@
                         const parRow = round.pars.length > 0 
                             ? `<tr><td>Par</td>${round.pars.map(p => `<td>${p.score}</td>`).join('')}</tr>`
                             : '';
-                        const playerRows = round.players.map(p => 
-                            `<tr><td>${p.name}</td>${p.holes.map(h => `<td>${h.score}</td>`).join('')}</tr>`
-                        ).join('');
+
+                        // Generate player rows with color-coded scores
+                        const playerRows = round.players.map(p => {
+                            const holeScores = p.holes.map(h => {
+                                const holeIndex = parseInt(h.hole.replace('Hole', '')) - 1;
+                                const parScore = round.pars[holeIndex] ? round.pars[holeIndex].score : 3; // Default par to 3 if not found
+                                let className = '';
+                                if (h.score < parScore) {
+                                    className = 'birdie'; // Score is less than par
+                                } else if (h.score > parScore) {
+                                    className = 'bogey'; // Score is more than par
+                                }
+                                return `<td class="${className}">${h.score}</td>`;
+                            }).join('');
+                            return `<tr><td>${p.name}</td>${holeScores}</tr>`;
+                        }).join('');
                         
                         card.innerHTML = `
                             <h2>${sydneyDate} - ${round.course}</h2>

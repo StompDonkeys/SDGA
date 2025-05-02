@@ -4,12 +4,118 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Performance Trends - StompDonkey Disc Golf</title>
-  <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;600&display=swap" rel="stylesheet" />
-  <!-- Chart.js and date adapter CDNs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f5f5f5;
+      color: #2e2e2e;
+    }
+    .main-header {
+      background-color: #1a3c34;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .main-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.8rem;
+    }
+    .hamburger {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .sidebar {
+      background-color: #2e2e2e;
+      color: white;
+      padding: 1rem;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 200px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    .sidebar.active {
+      transform: translateX(0);
+    }
+    .sidebar ul {
+      list-style: none;
+    }
+    .sidebar ul li {
+      margin: 1rem 0;
+    }
+    .sidebar ul li a {
+      color: white;
+      text-decoration: none;
+      font-family: 'Oswald', sans-serif;
+    }
+    .sidebar ul li a:hover {
+      text-decoration: underline;
+    }
+    main {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .trends-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .trends-section h2 {
+      font-family: 'Oswald', sans-serif;
+      margin-bottom: 1rem;
+    }
+    .filter-container {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .filter-container select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: 'Roboto', sans-serif;
+    }
+    .chart-container {
+      position: relative;
+      height: 400px;
+    }
+    .error-message {
+      color: #d32f2f;
+      margin-top: 1rem;
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .main-header h1 {
+        font-size: 1.4rem;
+      }
+      .filter-container {
+        flex-direction: column;
+      }
+      .chart-container {
+        height: 300px;
+      }
+    }
+  </style>
 </head>
 <body>
   <header class="main-header">
@@ -17,7 +123,7 @@
     <h1>Disc Golf Trends</h1>
   </header>
 
-  <nav class="sidebar" style="display: none;">
+  <nav class="sidebar">
     <ul>
       <li><a href="index.html">Home</a></li>
       <li><a href="rounds.html">Rounds</a></li>
@@ -30,50 +136,37 @@
 
   <main>
     <section class="trends-section">
-      <h2>ANZAC Day Cup Handicaps & Performance Trends</h2>
-      <div class="card">
-        <h2>Handicap Table</h2>
-        <p>Handicaps for ANZAC Day Cup at John Knight Memorial Park (based on latest data).</p>
-        <div class="details">
-          <table id="handicap-table">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Average +/-</th>
-                <th>Handicap</th>
-                <th>Expected Raw Score</th>
-                <th>Expected Net Score</th>
-              </tr>
-            </thead>
-            <tbody id="handicap-table-body"></tbody>
-          </table>
-        </div>
+      <h2>Performance Trends</h2>
+      <p>View +/- score trends over time for a selected player and course.</p>
+      <div class="filter-container">
+        <select id="playerFilter" aria-label="Select Player">
+          <option value="">Select Player</option>
+        </select>
+        <select id="courseFilter" aria-label="Select Course">
+          <option value="">Select Course</option>
+        </select>
       </div>
-
-      <div class="card">
-        <h2>Performance Trends</h2>
-        <p>+/- Scores over time at John Knight Memorial Park, showing player consistency and improvement.</p>
-        <div class="chart-container">
-          <canvas id="performanceChart" class="player-chart"></canvas>
-        </div>
+      <div class="chart-container">
+        <canvas id="performanceChart"></canvas>
       </div>
+      <p class="error-message" id="errorMessage">Unable to load data. Please try again later.</p>
     </section>
   </main>
 
   <script>
     // Sidebar toggle
     const sidebar = document.querySelector('.sidebar');
-    document.querySelector('.hamburger').addEventListener('click', () => {
-      sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+    const hamburger = document.querySelector('.hamburger');
+    hamburger.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
     });
-
     document.querySelectorAll('.sidebar ul li a').forEach(link => {
       link.addEventListener('click', () => {
-        sidebar.style.display = 'none';
+        sidebar.classList.remove('active');
       });
     });
 
-    // Parse UTC date string (e.g., "2025-03-09 2052") to Date object
+    // Parse UTC date string (e.g., "2025-03-09 2052")
     function parseCustomDate(dateStr) {
       try {
         const [datePart, timePart] = dateStr.split(' ');
@@ -97,6 +190,10 @@
       return true;
     }
 
+    // Initialize chart
+    let chartInstance = null;
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+
     // Fetch and process data.csv
     fetch('data.csv')
       .then(response => response.text())
@@ -104,154 +201,130 @@
         Papa.parse(csvText, {
           header: true,
           complete: function(results) {
-            const data = results.data;
-            const players = ['ArmyGeddon', 'Jobby', 'Youare22', 'Miza', 'Bucis'];
-            const filteredData = data.filter(
-              row =>
-                players.includes(row.PlayerName) &&
-                isRoundComplete(row) &&
-                row.CourseName === 'John Knight Memorial Park'
-            );
+            const data = results.data.filter(row => isRoundComplete(row));
+            const players = [...new Set(data.map(row => row.PlayerName))].sort();
+            const courses = [...new Set(data.map(row => row.CourseName))].sort();
 
-            // Calculate handicaps
-            const playerStats = {};
+            // Populate filter dropdowns
+            const playerFilter = document.getElementById('playerFilter');
+            const courseFilter = document.getElementById('courseFilter');
             players.forEach(player => {
-              const playerRounds = filteredData.filter(row => row.PlayerName === player);
-              const plusMinus = playerRounds.map(row => parseInt(row['+/-']) || 0);
-              const avgPlusMinus =
-                plusMinus.length > 0
-                  ? (plusMinus.reduce((a, b) => a + b, 0) / plusMinus.length).toFixed(2)
-                  : 'N/A';
-              const handicap =
-                avgPlusMinus !== 'N/A' ? Math.max(0, Math.round(parseFloat(avgPlusMinus) * 0.8)) : 'N/A';
-              const par = 56; // Par for John Knight Memorial Park
-              const expectedRawScore =
-                avgPlusMinus !== 'N/A' ? (par + parseFloat(avgPlusMinus)).toFixed(2) : 'N/A';
-              const expectedNetScore =
-                expectedRawScore !== 'N/A' && handicap !== 'N/A'
-                  ? (parseFloat(expectedRawScore) - handicap).toFixed(2)
-                  : 'N/A';
-
-              playerStats[player] = {
-                avgPlusMinus,
-                handicap,
-                expectedRawScore,
-                expectedNetScore
-              };
+              const option = document.createElement('option');
+              option.value = player;
+              option.textContent = player;
+              playerFilter.appendChild(option);
+            });
+            courses.forEach(course => {
+              const option = document.createElement('option');
+              option.value = course;
+              option.textContent = course;
+              courseFilter.appendChild(option);
             });
 
-            // Populate handicap table
-            const tableBody = document.getElementById('handicap-table-body');
-            players.forEach(player => {
-              const stats = playerStats[player];
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                <td>${player}</td>
-                <td>${stats.avgPlusMinus}</td>
-                <td>${stats.handicap}</td>
-                <td>${stats.expectedRawScore}</td>
-                <td>${stats.expectedNetScore}</td>
-              `;
-              tableBody.appendChild(row);
-            });
+            // Update chart based on filter selection
+            functionRenderedChart() {
+              const selectedPlayer = playerFilter.value;
+              const selectedCourse = courseFilter.value;
+              document.getElementById('errorMessage').style.display = 'none';
 
-            // Prepare chart data
-            const chartData = {
-              datasets: players.map(player => {
-                const playerRounds = filteredData
-                  .filter(row => row.PlayerName === player)
-                  .map(row => ({
-                    x: parseCustomDate(row.StartDate),
-                    y: parseInt(row['+/-']) || 0
-                  }))
-                  .sort((a, b) => a.x - b.x); // Sort by date
-                return {
-                  label: player,
-                  data: playerRounds,
-                  borderColor: getPlayerColor(player),
-                  backgroundColor: getPlayerColor(player, 0.2),
-                  fill: false,
-                  tension: 0.1,
-                  pointRadius: 3,
-                  pointHoverRadius: 5
-                };
-              })
-            };
+              // Filter data
+              const filteredData = data
+                .filter(
+                  row =>
+                    (!selectedPlayer || row.PlayerName === selectedPlayer) &&
+                    (!selectedCourse || row.CourseName === selectedCourse)
+                )
+                .map(row => ({
+                  x: parseCustomDate(row.StartDate),
+                  y: parseInt(row['+/-']) || 0
+                }))
+                .sort((a, b) => a.x - b.x);
 
-            // Player colors (consistent with styles.css and players.html)
-            function getPlayerColor(player, opacity = 1) {
-              const colors = {
-                ArmyGeddon: `rgba(211, 47, 47, ${opacity})`,
-                Jobby: `rgba(25, 118, 210, ${opacity})`,
-                Youare22: `rgba(56, 142, 60, ${opacity})`,
-                Miza: `rgba(142, 36, 170, ${opacity})`,
-                Bucis: `rgba(255, 179, 0, ${opacity})`
-              };
-              return colors[player] || `rgba(0, 0, 0, ${opacity})`;
-            }
+              // Destroy existing chart if it exists
+              if (chartInstance) {
+                chartInstance.destroy();
+              }
 
-            // Render Chart.js
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-            new Chart(ctx, {
-              type: 'line',
-              data: chartData,
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  x: {
-                    type: 'time',
-                    time: {
-                      unit: 'month',
-                      tooltipFormat: 'MMM dd, yyyy',
-                      displayFormats: {
-                        month: 'MMM yyyy'
-                      }
-                    },
-                    title: {
-                      display: true,
-                      text: 'Date',
-                      color: '#2e2e2e',
-                      font: { family: 'Oswald', size: 14 }
-                    },
-                    ticks: { color: '#2e2e2e' }
-                  },
-                  y: {
-                    title: {
-                      display: true,
-                      text: '+/- Score',
-                      color: '#2e2e2e',
-                      font: { family: 'Oswald', size: 14 }
-                    },
-                    suggestedMin: -10,
-                    suggestedMax: 30,
-                    ticks: { color: '#2e2e2e' }
-                  }
+              // Create new chart
+              chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                  datasets: [{
+                    label: selectedPlayer || 'All Players',
+                    data: filteredData,
+                    borderColor: 'rgba(25, 118, 210, 1)',
+                    backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                  }]
                 },
-                plugins: {
-                  legend: {
-                    position: 'top',
-                    labels: {
-                      color: '#2e2e2e',
-                      font: { family: 'Oswald', size: 12 }
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: {
+                      type: 'time',
+                      time: {
+                        unit: 'month',
+                        tooltipFormat: 'MMM dd, yyyy',
+                        displayFormats: { month: 'MMM yyyy' }
+                      },
+                      title: {
+                        display: true,
+                        text: 'Date',
+                        color: '#2e2e2e',
+                        font: { family: 'Oswald', size: 14 }
+                      },
+                      ticks: { color: '#2e2e2e' }
+                    },
+                    y: {
+                      title: {
+                        display: true,
+                        text: '+/- Score',
+                        color: '#2e2e2e',
+                        font: { family: 'Oswald', size: 14 }
+                      },
+                      suggestedMin: -10,
+                      suggestedMax: 30,
+                      ticks: { color: '#2e2e2e' }
                     }
                   },
-                  tooltip: {
-                    callbacks: {
-                      label: context => `${context.dataset.label}: ${context.raw.y}`
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                      labels: {
+                        color: '#2e2e2e',
+                        font: { family: 'Oswald', size: 12 }
+                      }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: context => `${context.dataset.label}: ${context.raw.y}`
+                      }
                     }
                   }
                 }
-              }
-            });
+              });
+            }
+
+            // Add event listeners for filters
+            playerFilter.addEventListener('change', updateChart);
+            courseFilter.addEventListener('change', updateChart);
+
+            // Initial chart render
+            updateChart();
           },
           error: function(error) {
             console.error('PapaParse error:', error);
+            document.getElementById('errorMessage').style.display = 'block';
           }
         });
       })
       .catch(error => {
         console.error('Error fetching data.csv:', error);
+        document.getElementById('errorMessage').style.display = 'block';
       });
   </script>
 </body>

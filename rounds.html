@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Add color-coded styles for hole scores */
+        /* Color-coded styles for hole scores */
+        .ace {
+            background-color: #66FF66; /* Green for ace */
+            color: #000;
+        }
+        .eagle {
+            background-color: #3366FF; /* Blue for eagle */
+            color: #fff;
+        }
         .birdie {
             background-color: #66B2FF; /* Light blue for birdie */
             color: #000;
@@ -16,10 +24,22 @@
             background-color: #FF9999; /* Light red/pink for bogey */
             color: #000;
         }
-        /* Ensure table cells have some padding and alignment for readability */
+        /* Ensure table cells have padding and alignment */
         .details td {
             padding: 8px;
             text-align: center;
+        }
+        /* Style for ace alert in title */
+        .ace-alert {
+            color: #FF0000; /* Bright red */
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        /* Style for ace note under player summary */
+        .ace-note {
+            color: #66FF66;
+            font-weight: bold;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -133,7 +153,22 @@
                         const playerSummary = round.players.map(p => 
                             `<p><strong>${p.name}:</strong> ${p.total} ${formatPlusMinus(p.plusMinus)}, Rating: ${p.rating}</p>`
                         ).join('');
-                        
+
+                        // Check for aces in this round
+                        let aceNotes = [];
+                        let hasAce = false;
+                        round.players.forEach(player => {
+                            player.holes.forEach(hole => {
+                                if (hole.score === 1) {
+                                    const holeNumber = hole.hole.replace('Hole', '');
+                                    aceNotes.push(`<p class="ace-note">${player.name} dropped an ace on Hole ${holeNumber}</p>`);
+                                    hasAce = true;
+                                }
+                            });
+                        });
+                        const aceAlert = hasAce ? '<span class="ace-alert">[ACE ALERT]</span>' : '';
+                        const aceNotesHtml = aceNotes.join('');
+
                         const holeHeaders = round.players[0].holes.map(h => `<th>${h.hole}</th>`).join('');
                         const parRow = round.pars.length > 0 
                             ? `<tr><td>Par</td>${round.pars.map(p => `<td>${p.score}</td>`).join('')}</tr>`
@@ -145,10 +180,14 @@
                                 const holeIndex = parseInt(h.hole.replace('Hole', '')) - 1;
                                 const parScore = round.pars[holeIndex] ? round.pars[holeIndex].score : 3; // Default par to 3 if not found
                                 let className = '';
-                                if (h.score < parScore) {
-                                    className = 'birdie'; // Score is less than par
+                                if (h.score === 1) {
+                                    className = 'ace'; // Ace (score of 1)
+                                } else if (h.score === parScore - 2) {
+                                    className = 'eagle'; // Eagle (2 under par)
+                                } else if (h.score === parScore - 1) {
+                                    className = 'birdie'; // Birdie (1 under par)
                                 } else if (h.score > parScore) {
-                                    className = 'bogey'; // Score is more than par
+                                    className = 'bogey'; // Bogey (above par)
                                 }
                                 return `<td class="${className}">${h.score}</td>`;
                             }).join('');
@@ -156,9 +195,10 @@
                         }).join('');
                         
                         card.innerHTML = `
-                            <h2>${sydneyDate} - ${round.course}</h2>
+                            <h2>${sydneyDate} - ${round.course} ${aceAlert}</h2>
                             <p><strong>Layout:</strong> ${round.layout}</p>
                             ${playerSummary}
+                            ${aceNotesHtml}
                             <button class="toggle-details">Show Details</button>
                             <div class="details" style="display:none">
                                 <h3>Hole Scores</h3>

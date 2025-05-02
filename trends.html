@@ -67,7 +67,12 @@
       height: calc(100% - 60px);
       z-index: 9;
       box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+      transform: translateX(-100%); /* Start hidden */
       transition: transform 0.3s ease;
+    }
+
+    .sidebar.active {
+      transform: translateX(0); /* Slide in when active */
     }
 
     .sidebar ul {
@@ -143,6 +148,7 @@
       padding: 10px;
       border-radius: 10px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      height: 400px; /* Increased height for better readability on mobile */
     }
 
     .chart-legend {
@@ -206,6 +212,7 @@
 
       .chart-container {
         padding: 5px;
+        height: 300px; /* Adjusted for mobile readability */
       }
 
       .chart-legend {
@@ -264,7 +271,7 @@
     });
     document.querySelectorAll('.sidebar ul li a').forEach(link => {
       link.addEventListener('click', () => {
-        sidebar.classList.remove('active');
+        sidebar.classList.remove('active'); // Retract sidebar on link click
       });
     });
 
@@ -341,9 +348,9 @@
                 chartInstance.destroy();
               }
 
-              // Create new chart
+              // Create new chart with mobile-friendly adjustments
               chartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'line', // Line chart optimized for mobile
                 data: {
                   datasets: [{
                     label: selectedPlayer || 'All Players',
@@ -352,8 +359,9 @@
                     backgroundColor: 'rgba(25, 118, 210, 0.2)',
                     fill: false,
                     tension: 0.1,
-                    pointRadius: 3,
-                    pointHoverRadius: 5
+                    pointRadius: 5, // Larger points for readability
+                    pointHoverRadius: 7,
+                    borderWidth: 2 // Thicker line for visibility
                   }]
                 },
                 options: {
@@ -373,7 +381,7 @@
                         color: '#2e2e2e',
                         font: { family: 'Oswald', size: 14 }
                       },
-                      ticks: { color: '#2e2e2e' }
+                      ticks: { color: '#2e2e2e', maxRotation: 0, minRotation: 0 } // Prevent label rotation
                     },
                     y: {
                       title: {
@@ -384,7 +392,7 @@
                       },
                       suggestedMin: -15,
                       suggestedMax: 40,
-                      ticks: { color: '#2e2e2e' }
+                      ticks: { color: '#2e2e2e', stepSize: 5 } // Clearer tick intervals
                     }
                   },
                   plugins: {

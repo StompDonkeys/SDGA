@@ -166,7 +166,7 @@
       });
     });
 
-    // Parse UTC date string (e.g., "2025-03-09 2052")
+    // Parse UTC date string (e.g., "2025-04-28 0708")
     function parseCustomDate(dateStr) {
       try {
         const [datePart, timePart] = dateStr.split(' ');
@@ -201,7 +201,7 @@
         Papa.parse(csvText, {
           header: true,
           complete: function(results) {
-            const data = results.data.filter(row => isRoundComplete(row));
+            const data = results.data.filter(row => isRoundComplete(row) && row.PlayerName !== 'Par');
             const players = [...new Set(data.map(row => row.PlayerName))].sort();
             const courses = [...new Set(data.map(row => row.CourseName))].sort();
 
@@ -222,7 +222,7 @@
             });
 
             // Update chart based on filter selection
-            functionRenderedChart() {
+            function updateChart() {
               const selectedPlayer = playerFilter.value;
               const selectedCourse = courseFilter.value;
               document.getElementById('errorMessage').style.display = 'none';
@@ -286,8 +286,8 @@
                         color: '#2e2e2e',
                         font: { family: 'Oswald', size: 14 }
                       },
-                      suggestedMin: -10,
-                      suggestedMax: 30,
+                      suggestedMin: -15,
+                      suggestedMax: 40,
                       ticks: { color: '#2e2e2e' }
                     }
                   },

@@ -57,7 +57,7 @@
         
         fetch('data.csv').then(r => r.text()).then(csvText => {
             Papa.parse(csvText, { header: true, complete: function(results) {
-                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Bucis', 'Miza'];
+                const data = results.data, players = ['ArmyGeddon', 'Jobby', 'Youare22', 'Bucis', 'Miza'];
                 const filteredData = data.filter(row => players.includes(row.PlayerName) && isRoundComplete(row));
                 
                 const courseRecords = {}; 

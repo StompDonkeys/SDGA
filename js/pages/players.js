@@ -1,0 +1,323 @@
+import { toSydneyISODate, parseCalendarDate } from "../core/dates.js";
+import { formatPlusMinus } from "../core/format.js";
+import { loadRounds } from "../core/data.js";
+
+// Page-local: sidebar toggle
+const sidebar = document.querySelector('.sidebar');
+document.querySelector('.hamburger').addEventListener('click', () => {
+  sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+});
+document.querySelectorAll('.sidebar ul li a').forEach(link => {
+  link.addEventListener('click', () => {
+    sidebar.style.display = 'none';
+  });
+});
+
+// Keep original function names used by the legacy rendering code
+function convertToSydneyDate(utcDateStr) {
+  return toSydneyISODate(utcDateStr);
+}
+function parseCustomDate(dateStr) {
+  return parseCalendarDate(dateStr);
+}
+
+// Shared formatter (same signature as before)
+
+
+
+
+/**
+ * Render the Players page into #player-profiles.
+ * This function is essentially your original Papa.parse(complete) callback,
+ * with only the data-loading and player list logic moved out.
+ */
+function renderPlayers(rounds) {
+
+                    const data = rounds;
+                    console.log('Parsed data rows:', data.length);
+                    const filteredData = data;
+                    const players = Array.from(new Set(filteredData.map(r => r.PlayerName)))
+                        .filter(Boolean)
+                        .sort((a,b) => a.localeCompare(b, 'en-AU'));
+                    console.log('Filtered data rows:', filteredData.length, 'players:', players.length);
+const playerData = {}; 
+                    players.forEach(player => {
+                        playerData[player] = filteredData.filter(row => row.PlayerName === player)
+                            .sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
+                        console.log(`Rounds for ${player}:`, playerData[player].length);
+                    });
+
+                    function calculateCurrentRating(rounds) {
+                        const last20 = rounds.slice(0, 20);
+                        const validRatings = last20.map(r => parseInt(r.RoundRating) || 0)
+                            .filter(r => r > 0).sort((a, b) => b - a).slice(0, 8);
+                        return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                    }
+
+                    function calculatePreviousRating(rounds) {
+                        const last20 = rounds.slice(0, 20);
+                        const validRatings = last20.map(r => parseInt(r.RoundRating) || 0)
+                            .filter(r => r > 0).sort((a, b) => b - a).slice(1, 9);
+                        return validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(2) : 'N/A';
+                    }
+
+                    function getRatingMovement(current, previous) {
+                        if (current === 'N/A' || previous === 'N/A') return '';
+                        const diff = parseFloat(current) - parseFloat(previous);
+                        return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : '(±0.00)';
+                    }
+
+                    function countAces(rounds) { 
+                        let aceCount = 0; 
+                        rounds.forEach(round => { 
+                            for (let i = 1; i <= 18; i++) {
+                                if (parseInt(round[`Hole${i}`]) === 1) {
+                                    aceCount++;
+                                }
+                            }
+                        }); 
+                        return aceCount; 
+                    }
+
+                    function getBestScoresPerCourse(rounds) {
+                        const bestScores = {}; 
+                        rounds.forEach(round => {
+                            const course = round.CourseName;
+                            const total = parseInt(round.Total);
+                            const plusMinus = parseInt(round['+/-']);
+                            const date = convertToSydneyDate(round.StartDate);
+                            if (!bestScores[course] || total < parseInt(bestScores[course].total)) {
+                                bestScores[course] = { total, plusMinus, date };
+                            }
+                        }); 
+                        return bestScores;
+                    }
+
+                    function getJourneyOverview(playerName, rounds) {
+                        if (rounds.length === 0) return '';
+                        const firstRound = rounds[rounds.length - 1];
+                        const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate))
+                            .toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                        const validRatings = rounds.map(r => ({ rating: parseInt(r.RoundRating) || 0, ...r }))
+                            .filter(r => r.rating > 0)
+                            .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
+                        const earlyLow = validRatings.length ? validRatings[0] : null;
+                        const peak = validRatings.reduce((max, current) => 
+                            max.rating > current.rating ? max : current, validRatings[0]);
+                        // Use formatPlusMinus to ensure correct display of negative scores
+                        const peakPlusMinus = formatPlusMinus(peak['+/-']);
+                        return `<p>Journey Overview: ${playerName} first appeared in ${firstMonthYear} and shows improvement. Their RoundRating rose from ${earlyLow ? earlyLow.rating : 'N/A'} at ${earlyLow ? earlyLow.CourseName : 'N/A'} in ${earlyLow ? new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'} to ${peak.rating} ${peakPlusMinus} at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString('en-US', { month: 'long', year: 'numeric' })}.</p>`;
+                    }
+
+                    const container = document.getElementById('player-profiles');
+                    let hasProfiles = false;
+
+                    players.forEach((player, index) => {
+                        const rounds = playerData[player];
+                        if (rounds.length === 0) {
+                            console.log(`No valid rounds for ${player}, skipping profile`);
+                            return;
+                        }
+                        hasProfiles = true;
+                        const totalRounds = rounds.length;
+                        const totalScores = rounds.map(r => parseInt(r.Total) || 0).filter(s => s > 0);
+                        const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : 'N/A';
+                        const totalPlusMinus = rounds.map(r => parseInt(r['+/-']) || 0).reduce((a, b) => a + b, 0);
+                        const currentRating = calculateCurrentRating(rounds);
+                        const previousRating = calculatePreviousRating(rounds);
+                        const ratingMovement = getRatingMovement(parseFloat(currentRating) || 0, parseFloat(previousRating) || 0);
+                        const aceCount = countAces(rounds);
+                        const bestScores = getBestScoresPerCourse(rounds);
+                        const card = document.createElement('div');
+                        card.className = 'record-card player-profile'; 
+                        card.style.animationDelay = `${index * 0.1}s`;
+                        const bestScoresHtml = Object.entries(bestScores)
+                            .map(([course, data]) => `<li><strong>${course}</strong>: ${data.total} ${formatPlusMinus(data.plusMinus)} on ${data.date}</li>`)
+                            .join('');
+                        const journeyOverview = getJourneyOverview(player, rounds);
+
+                        const roundDates = rounds.map(r => convertToSydneyDate(r.StartDate));
+                        const roundRatings = rounds.map(r => parseInt(r.RoundRating) || null);
+                        const dateMap = new Map();
+                        rounds.forEach((round, i) => {
+                            const dateKey = convertToSydneyDate(round.StartDate).slice(0, 7);
+                            if (!dateMap.has(dateKey)) {
+                                dateMap.set(dateKey, { ratings: [], dates: [] });
+                            }
+                            dateMap.get(dateKey).ratings.push(parseInt(round.RoundRating) || 0);
+                            dateMap.get(dateKey).dates.push(convertToSydneyDate(round.StartDate));
+                        });
+                        const aggregatedDates = Array.from(dateMap.keys()).reverse();
+                        const aggregatedRatings = aggregatedDates.map(key => {
+                            const values = dateMap.get(key).ratings.filter(r => r > 0);
+                            return values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : null;
+                        });
+                        const aggregatedMovingAvg = [];
+                        for (let i = 0; i < aggregatedRatings.length; i++) {
+                            const window = aggregatedRatings.slice(Math.max(0, i - 7), i + 1).filter(r => r !== null);
+                            aggregatedMovingAvg.push(window.length ? (window.reduce((a, b) => a + parseFloat(b), 0) / window.length).toFixed(2) : null);
+                        }
+
+                        card.innerHTML = `
+                            <h3>${player}</h3>
+                            <p><strong>Rounds Played:</strong> ${totalRounds}</p>
+                            <p><strong>Average Score:</strong> ${avgScore}</p>
+                            <p><strong>Best Scores by Course:</strong></p>
+                            <ul>${bestScoresHtml}</ul>
+                            <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
+                            <p><strong>Current Rating:</strong> ${currentRating} ${ratingMovement}</p>
+                            <p><strong>Ace Count:</strong> ${aceCount}</p>
+                            ${journeyOverview}
+                            <div class="chart-container">
+                                <canvas id="chart-${player.toLowerCase()}" class="player-chart"></canvas>
+                            </div>
+                        `;
+                        container.appendChild(card);
+
+                        // Only initialize chart if there are valid ratings
+                        if (aggregatedRatings.some(r => r !== null)) {
+                            const ctx = document.getElementById(`chart-${player.toLowerCase()}`).getContext('2d');
+                            const chart = new Chart(ctx, {
+                                type: 'line',
+                                data: { 
+                                    labels: aggregatedDates,
+                                    datasets: [
+                                        { 
+                                            label: 'Round Rating', 
+                                            data: aggregatedRatings, 
+                                            borderColor: getPlayerColor(player), 
+                                            backgroundColor: getPlayerColor(player, 0.2), 
+                                            fill: false, 
+                                            tension: 0.1, 
+                                            pointRadius: 3, 
+                                            pointHoverRadius: 5 
+                                        },
+                                        { 
+                                            label: 'Moving Average Rating (8 rounds)', 
+                                            data: aggregatedMovingAvg, 
+                                            borderColor: 'rgba(255, 159, 64, 1)', 
+                                            backgroundColor: 'rgba(255, 159, 64, 0.2)', 
+                                            fill: false, 
+                                            borderWidth: 2, 
+                                            tension: 0.1, 
+                                            pointRadius: 0 
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: { 
+                                        x: { 
+                                            title: { display: true, text: 'Date', color: '#2e2e2e', font: { family: 'Oswald', size: 14 } }, 
+                                            ticks: { color: '#2e2e2e', maxRotation: 45, minRotation: 45 } 
+                                        }, 
+                                        y: { 
+                                            title: { display: true, text: 'Rating', color: '#2e2e2e', font: { family: 'Oswald', size: 14 } }, 
+                                            beginAtZero: false, 
+                                            min: 90, 
+                                            max: 210, 
+                                            ticks: { color: '#2e2e2e' } 
+                                        }
+                                    },
+                                    plugins: {
+                                        legend: { 
+                                            position: 'top', 
+                                            labels: { 
+                                                color: '#2e2e2e', 
+                                                font: { family: 'Oswald', size: 12 }, 
+                                                usePointStyle: false,
+                                                generateLabels: function(chart) {
+                                                    const datasets = chart.data.datasets;
+                                                    return datasets.map((dataset, i) => ({
+                                                        text: dataset.label,
+                                                        fillStyle: dataset.backgroundColor,
+                                                        strokeStyle: dataset.borderColor,
+                                                        lineWidth: dataset.borderWidth || 1,
+                                                        datasetIndex: i
+                                                    }));
+                                                }
+                                            }
+                                        },
+                                        tooltip: { 
+                                            enabled: false,
+                                            external: function(context) {
+                                                const tooltip = context.tooltip;
+                                                if (tooltip.opacity === 0) return;
+                                                const index = tooltip.dataPoints[0].dataIndex;
+                                                const dateKey = aggregatedDates[index];
+                                                const round = rounds.find(r => convertToSydneyDate(r.StartDate).slice(0, 7) === dateKey);
+                                                let tooltipEl = document.getElementById('chartjs-tooltip');
+                                                if (!tooltipEl) {
+                                                    tooltipEl = document.createElement('div');
+                                                    tooltipEl.id = 'chartjs-tooltip';
+                                                    tooltipEl.style.position = 'absolute';
+                                                    tooltipEl.style.background = 'rgba(0, 0, 0, 0.8)';
+                                                    tooltipEl.style.color = '#fff';
+                                                    tooltipEl.style.padding = '5px 10px';
+                                                    tooltipEl.style.borderRadius = '3px';
+                                                    document.body.appendChild(tooltipEl);
+                                                }
+                                                if (round) {
+                                                    const content = `
+                                                        <strong>Date:</strong> ${convertToSydneyDate(round.StartDate)}<br>
+                                                        <strong>Score:</strong> ${round.Total} ${formatPlusMinus(round['+/-'])}<br>
+                                                        <strong>Rating:</strong> ${round.RoundRating || 'N/A'}<br>
+                                                        <strong>Course:</strong> ${round.CourseName}
+                                                    `;
+                                                    tooltipEl.innerHTML = content;
+                                                }
+                                                const pos = context.chart.canvas.getBoundingClientRect();
+                                                tooltipEl.style.left = pos.left + tooltip.caretX + 'px';
+                                                tooltipEl.style.top = pos.top + tooltip.caretY + 'px';
+                                                tooltipEl.style.opacity = 1;
+                                            }
+                                        },
+                                        zoom: { 
+                                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }, 
+                                            pan: { enabled: true, mode: 'xy' } 
+                                        }
+                                    },
+                                    onClick: (event, elements) => {
+                                        if (elements.length > 0) {
+                                            const index = elements[0].index;
+                                            chart.tooltip.setActiveElements([{ datasetIndex: 0, index }], { x: event.x, y: event.y });
+                                            chart.update();
+                                        }
+                                    }
+                                }
+                            });
+                            const canvas = document.getElementById(`chart-${player.toLowerCase()}`);
+                            canvas.addEventListener('mouseup', () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
+                            canvas.addEventListener('touchend', () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
+                        } else {
+                            console.log(`No valid ratings for ${player}, skipping chart`);
+                        }
+                    });
+
+                    if (!hasProfiles) {
+                        container.innerHTML = '<p>No player data available. Please check data.csv.</p>';
+                    }
+
+}
+
+async function main() {
+  const container = document.getElementById('player-profiles');
+  try {
+    // Load + validate once, using shared loader.
+    // Exclude the synthetic player "Par" from player stats.
+    const rounds = await loadRounds({
+      path: 'data.csv',
+      filterComplete: true,
+      excludePlayers: ['Par'],
+    });
+    renderPlayers(rounds);
+  } catch (e) {
+    console.error(e);
+    if (container) {
+      container.innerHTML = `<div class="error">Failed to load data: ${String(e.message || e)}</div>`;
+    }
+  }
+}
+
+main();

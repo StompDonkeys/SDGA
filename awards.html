@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SDGA - Awards</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+</head>
+<body>
+  <header class="main-header">
+    <button class="hamburger" aria-label="Toggle Menu">☰</button>
+    <h1>STOMPDONKEY DISC GOLF ASSOCIATION</h1>
+  </header>
+
+  <nav class="sidebar" style="display: none;">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="rounds.html">Rounds</a></li>
+      <li><a href="records.html">Records</a></li>
+      <li><a href="players.html">Players</a></li>
+      <li><a href="trends.html">Trends</a></li>
+      <li><a href="awards.html">Awards</a></li>
+      <li><a href="data.csv" download class="nav-download">Download Data</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <h2 class="page-title">AWARDS</h2>
+    <p class="page-subtitle">Select a player to view unlocked and locked badges.</p>
+
+    <section class="trend-controls" style="margin-top: 10px;">
+      <div class="control">
+        <label for="playerSelect">Player</label>
+        <select id="playerSelect" aria-label="Select Player"></select>
+      </div>
+    </section>
+
+    <section class="award-summary" aria-label="Awards summary">
+      <div class="summary-card">
+        <div class="summary-label">Collected</div>
+        <div class="summary-value" id="awardsCount">–</div>
+        <div class="summary-sub" id="awardsSub">–</div>
+      </div>
+    </section>
+
+    <section id="awardsContainer"></section>
+  </main>
+
+  <script type="module" src="js/pages/awards.js?v=2"></script>
+</body>
+</html>

@@ -651,3 +651,18 @@ h2 {
   object-fit: contain;
   display: block;
 }
+/* Awards tooltip tweaks */
+@media (max-width: 600px) {
+  .badge-tooltip {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    padding: 7px 9px;
+    border-radius: 11px;
+  }
+  .badge-tooltip-title { font-size: 0.88rem; }
+  .badge-tooltip-text {
+    font-size: 0.82rem;
+    -webkit-line-clamp: 3;
+  }
+}

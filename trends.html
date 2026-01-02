@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SDGA - Trends</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="main-header">
+        <button class="hamburger" aria-label="Toggle Menu">☰</button>
+        <h1>STOMPDONKEY DISC GOLF ASSOCIATION</h1>
+    </header>
+
+  <nav class="sidebar" style="display: none;">
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rounds.html">Rounds</a></li>
+            <li><a href="records.html">Records</a></li>
+            <li><a href="players.html">Players</a></li>
+            <li><a href="trends.html">Performance Trends</a></li>
+            <li><a href="data.csv" download>Download Data</a></li>
+        </ul>
+    </nav>
+
+  <main class="container">
+  <h2 class="page-title">PERFORMANCE TRENDS</h2>
+  <p class="page-subtitle">Track performance over time by player and course. Use the controls to drill in.</p>
+
+  <section class="trend-controls">
+    <div class="control">
+      <label for="playerFilter">Player</label>
+      <select id="playerFilter" aria-label="Select Player">
+        <option value="">All Players</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label for="courseFilter">Course</label>
+      <select id="courseFilter" aria-label="Select Course">
+        <option value="">All Courses</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label for="metricFilter">Metric</label>
+      <select id="metricFilter" aria-label="Select Metric">
+        <option value="+/-">+/-</option>
+        <option value="rating">Rating</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label for="windowFilter">Rolling Avg</label>
+      <select id="windowFilter" aria-label="Select Rolling Average Window">
+        <option value="0">Off</option>
+        <option value="3">3 rounds</option>
+        <option value="5">5 rounds</option>
+        <option value="8" selected>8 rounds</option>
+      </select>
+    </div>
+
+    <div class="control checkbox">
+      <label>
+        <input type="checkbox" id="pointsToggle" checked />
+        Show points
+      </label>
+    </div>
+  </section>
+
+  <section class="trend-summary" aria-label="Trend summary">
+    <div class="summary-card">
+      <div class="summary-label">Rounds</div>
+      <div class="summary-value" id="summaryRounds">–</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Best</div>
+      <div class="summary-value" id="summaryBest">–</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Average</div>
+      <div class="summary-value" id="summaryAvg">–</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Latest</div>
+      <div class="summary-value" id="summaryLatest">–</div>
+    </div>
+  </section>
+
+  <section class="chart-shell">
+    <div class="chart-header">
+      <div class="chart-title" id="chartTitle">All Players • All Courses</div>
+      <div class="chart-note" id="chartNote">Metric: +/-</div>
+    </div>
+    <div class="chart-container">
+      <canvas id="performanceChart"></canvas>
+    </div>
+    <p class="error-message" id="errorMessage" style="display:none;">Unable to load trend data.</p>
+  </section>
+</main>
+  <script type="module" src="js/pages/trends.js?v=11"></script>
+</body>
+</html>

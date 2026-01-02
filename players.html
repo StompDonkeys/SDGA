@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StompDonkey Disc Golf Association - Players</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+</head>
+<body>
+    <header class="main-header">
+        <button class="hamburger" aria-label="Toggle Menu">☰</button>
+        <h1>StompDonkey Disc Golf Association</h1>
+    </header>
+    <nav class="sidebar" style="display: none;">
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rounds.html">Rounds</a></li>
+            <li><a href="records.html">Records</a></li>
+            <li><a href="players.html">Players</a></li>
+            <li><a href="trends.html">Performance Trends</a></li>
+            <li><a href="data.csv" download>Download Data</a></li>
+        </ul>
+    </nav>
+    <main>
+        <section class="records-section">
+            <h2>Player Profiles</h2>
+            <div id="player-profiles" class="records-container"></div>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script type="module" src="js/pages/players.js?v=4"></script>
+</body>
+</html>

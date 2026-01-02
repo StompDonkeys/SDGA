@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StompDonkey Disc Golf Association - Rounds</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Color-coded styles for hole scores */
+        .ace {
+            background-color: #66FF66; /* Green for ace */
+            color: #000;
+        }
+        .eagle {
+            background-color: #3366FF; /* Blue for eagle */
+            color: #fff;
+        }
+        .birdie {
+            background-color: #66B2FF; /* Light blue for birdie */
+            color: #000;
+        }
+        .bogey {
+            background-color: #FF9999; /* Light red/pink for bogey */
+            color: #000;
+        }
+        /* Ensure table cells have padding and alignment */
+        .details td {
+            padding: 8px;
+            text-align: center;
+        }
+        /* Style for ace alert in title */
+        .ace-alert {
+            color: #FF0000; /* Bright red */
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        /* Style for ace note under player summary */
+        .ace-note {
+            color: #66FF66;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <button class="hamburger" aria-label="Toggle Menu">☰</button>
+        <h1>StompDonkey Disc Golf Association</h1>
+    </header>
+    <nav class="sidebar" style="display: none;">
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rounds.html">Rounds</a></li>
+            <li><a href="records.html">Records</a></li>
+            <li><a href="players.html">Players</a></li>
+            <li><a href="trends.html">Performance Trends</a></li>
+            <li><a href="data.csv" download>Download Data</a></li>
+        </ul>
+    </nav>
+    <main>
+        <section class="records-section">
+            <h2>Rounds</h2>
+            <div id="stats-container" class="records-container"></div>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+<script type="module" src="js/pages/rounds.js"></script>
+</body>
+</html>

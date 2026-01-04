@@ -666,3 +666,24 @@ h2 {
     -webkit-line-clamp: 3;
   }
 }
+/* Badge progress (sliders) */
+.badge-progress {
+  margin-top: 8px;
+}
+.badge-progress-bar {
+  height: 8px;
+  background: rgba(0,0,0,0.10);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.badge-progress-fill {
+  height: 100%;
+  background: #f2b233;
+  border-radius: 999px;
+}
+.badge-progress-text {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  opacity: 0.8;
+  line-height: 1.1;
+}

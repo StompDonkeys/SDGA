@@ -1,5 +1,5 @@
 import { parseUtcTimestampHHmm } from "./dates.js";
-import { inferHoleCount, isRoundComplete } from "./rounds.js";
+import { inferHoleCount, isRoundComplete } from "./rounds.js?v=2";
 
 function parseDate(s) {
   return parseUtcTimestampHHmm(s) || new Date(0);

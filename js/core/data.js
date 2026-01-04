@@ -3,7 +3,7 @@
  * Relies on PapaParse being available globally (window.Papa).
  */
 
-import { isRoundComplete } from "./rounds.js";
+import { isRoundComplete } from "./rounds.js?v=2";
 
 export async function loadCsvText(path = "data.csv") {
   const res = await fetch(path, { cache: "no-store" });

@@ -1,21 +1,33 @@
 [
   {
-    "id": "AceClub_5",
-    "category": "Aces",
-    "title": "5 Aces",
-    "type": "ace_count",
-    "count": 5,
-    "img": "images/badges/Badge_AceClub_5.png",
-    "lockedImg": "images/Badges_locked/Locked_AceClub_5.png"
+    "id": "BirdieSweep_Woden",
+    "category": "Birdie Sweep",
+    "title": "Birdie Sweep \u2013 Woden",
+    "type": "birdie_sweep",
+    "courseName": "Eddison Park",
+    "layoutName": "2019 Blue Tees",
+    "img": "images/badges/Badge_BirdieSweep_Woden.png",
+    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_Woden.png"
   },
   {
-    "id": "AceClub_1",
-    "category": "Aces",
-    "title": "First Ace",
-    "type": "ace_count",
-    "count": 1,
-    "img": "images/badges/Badge_AceClub_1.png",
-    "lockedImg": "images/Badges_locked/Locked_AceClub_1.png"
+    "id": "BirdieSweep_GoldCreek",
+    "category": "Birdie Sweep",
+    "title": "Birdie Sweep \u2013 Gold Creek",
+    "type": "birdie_sweep",
+    "courseName": "Gold Creek School Disc Golf Course",
+    "layoutName": "Gold Creek School Disc Golf Course",
+    "img": "images/badges/Badge_BirdieSweep_GoldCreek.png",
+    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_GoldCreek.png"
+  },
+  {
+    "id": "BirdieSweep_WestonPark",
+    "category": "Birdie Sweep",
+    "title": "Birdie Sweep \u2013 Weston Park",
+    "type": "birdie_sweep",
+    "courseName": "Weston Park Disc Golf Course",
+    "layoutName": "White Tees ",
+    "img": "images/badges/Badge_BirdieSweep_WestonPark.png",
+    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_WestonPark.png"
   },
   {
     "id": "BirdieSweep_BelcoA",
@@ -38,16 +50,6 @@
     "lockedImg": "images/Badges_locked/Locked_BirdieSweep_BelcoB.png"
   },
   {
-    "id": "BirdieSweep_GoldCreek",
-    "category": "Birdie Sweep",
-    "title": "Birdie Sweep \u2013 Gold Creek",
-    "type": "birdie_sweep",
-    "courseName": "Gold Creek School Disc Golf Course",
-    "layoutName": "Gold Creek School Disc Golf Course",
-    "img": "images/badges/Badge_BirdieSweep_GoldCreek.png",
-    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_GoldCreek.png"
-  },
-  {
     "id": "BirdieSweep_Tuggies",
     "category": "Birdie Sweep",
     "title": "Birdie Sweep \u2013 Tuggies",
@@ -56,166 +58,5 @@
     "layoutName": null,
     "img": "images/badges/Badge_BirdieSweep_Tuggies.png",
     "lockedImg": "images/Badges_locked/Locked_BirdieSweep_Tuggies.png"
-  },
-  {
-    "id": "BirdieSweep_WestonParkWhite",
-    "category": "Birdie Sweep",
-    "title": "Birdie Sweep \u2013 Weston Park (White Tees)",
-    "type": "birdie_sweep",
-    "courseName": "Weston Park Disc Golf Course",
-    "layoutName": "White Tees ",
-    "img": "images/badges/Badge_BirdieSweep_WestonPark.png",
-    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_WestonPark.png"
-  },
-  {
-    "id": "BirdieSweep_Woden",
-    "category": "Birdie Sweep",
-    "title": "Birdie Sweep \u2013 Woden",
-    "type": "birdie_sweep",
-    "courseName": "Eddison Park",
-    "layoutName": "2019 Blue Tees",
-    "img": "images/badges/Badge_BirdieSweep_Woden.png",
-    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_Woden.png"
-  },
-  {
-    "id": "Mugsy_BelcoA",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Belco (A)",
-    "type": "no_mugsy",
-    "courseName": "John Knight Memorial Park",
-    "layoutName": "Public Layout (A-Pin Position)",
-    "img": "images/badges/Badge_Mugsy_BelcoA.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_BelcoA.png"
-  },
-  {
-    "id": "Mugsy_BelcoB",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Belco (B)",
-    "type": "no_mugsy",
-    "courseName": "John Knight Memorial Park",
-    "layoutName": "Public Layout (B-Pin Position)",
-    "img": "images/badges/Badge_Mugsy_BelcoB.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_BelcoB.png"
-  },
-  {
-    "id": "Mugsy_GoldCreek",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Gold Creek",
-    "type": "no_mugsy",
-    "courseName": "Gold Creek School Disc Golf Course",
-    "layoutName": "Gold Creek School Disc Golf Course",
-    "img": "images/badges/Badge_Mugsy_GoldCreek.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_GoldCreek.png"
-  },
-  {
-    "id": "Mugsy_Tuggies",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Tuggies",
-    "type": "no_mugsy",
-    "courseName": "Athllon Park",
-    "layoutName": null,
-    "img": "images/badges/Badge_Mugsy_Tuggies.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_Tuggies.png"
-  },
-  {
-    "id": "Mugsy_WestonParkWhite",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Weston Park (White Tees)",
-    "type": "no_mugsy",
-    "courseName": "Weston Park Disc Golf Course",
-    "layoutName": "White Tees ",
-    "img": "images/badges/Badge_Mugsy_WestonParkWhite.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_WestonParkWhite.png"
-  },
-  {
-    "id": "Mugsy_Woden",
-    "category": "No Mugsy",
-    "title": "No Mugsy \u2013 Woden",
-    "type": "no_mugsy",
-    "courseName": "Eddison Park",
-    "layoutName": "2019 Blue Tees",
-    "img": "images/badges/Badge_Mugsy_Woden.png",
-    "lockedImg": "images/Badges_locked/Locked_Mugsy_Woden.png"
-  },
-  {
-    "id": "Rating_200_AllTime",
-    "category": "Ratings",
-    "title": "200 All\u2011Time Rating",
-    "type": "disc_rating",
-    "threshold": 200,
-    "img": "images/badges/Badge_Rating_200_AllTime.png",
-    "lockedImg": "images/Badges_locked/Locked_Rating_200_AllTime.png"
-  },
-  {
-    "id": "Rating_200_Round",
-    "category": "Ratings",
-    "title": "200 Round Rating",
-    "type": "round_rating",
-    "threshold": 200,
-    "img": "images/badges/Badge_Rating_200_Round.png",
-    "lockedImg": "images/Badges_locked/Locked_Rating_200_Round.png"
-  },
-  {
-    "id": "Rounds_100",
-    "category": "Rounds",
-    "title": "100 Rounds",
-    "type": "rounds_milestone",
-    "count": 100,
-    "img": "images/badges/Badge_Rounds_100.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_100.png"
-  },
-  {
-    "id": "Rounds_150",
-    "category": "Rounds",
-    "title": "150 Rounds",
-    "type": "rounds_milestone",
-    "count": 150,
-    "img": "images/badges/Badge_Rounds_150.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_150.png"
-  },
-  {
-    "id": "Rounds_20",
-    "category": "Rounds",
-    "title": "20 Rounds",
-    "type": "rounds_milestone",
-    "count": 20,
-    "img": "images/badges/Badge_Rounds_20.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_20.png"
-  },
-  {
-    "id": "Rounds_200",
-    "category": "Rounds",
-    "title": "200 Rounds",
-    "type": "rounds_milestone",
-    "count": 200,
-    "img": "images/badges/Badge_Rounds_200.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_200.png"
-  },
-  {
-    "id": "Rounds_250",
-    "category": "Rounds",
-    "title": "250 Rounds",
-    "type": "rounds_milestone",
-    "count": 250,
-    "img": "images/badges/Badge_Rounds_250.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_250.png"
-  },
-  {
-    "id": "Rounds_300",
-    "category": "Rounds",
-    "title": "300 Rounds",
-    "type": "rounds_milestone",
-    "count": 300,
-    "img": "images/badges/Badge_Rounds_300.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_300.png"
-  },
-  {
-    "id": "Rounds_50",
-    "category": "Rounds",
-    "title": "50 Rounds",
-    "type": "rounds_milestone",
-    "count": 50,
-    "img": "images/badges/Badge_Rounds_50.png",
-    "lockedImg": "images/Badges_locked/Locked_Rounds_50.png"
   }
 ]

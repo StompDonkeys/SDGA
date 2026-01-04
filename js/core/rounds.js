@@ -18,8 +18,15 @@ export function inferHoleCount(row) {
 
 export function isRoundComplete(row) {
   const holes = inferHoleCount(row);
-  // Treat anything under 18 holes as incomplete (filters out 9‑hole layouts like "Gold Creek 1–9").
+
+  // Only treat 18+ hole rounds as complete (filters out short layouts like Gold Creek 1–9).
   if (holes < 18) return false;
+
+  // Explicitly exclude known short layouts even if played multiple loops.
+  const course = String(row.CourseName || "").toLowerCase();
+  const layout = String(row.LayoutName || "").toLowerCase();
+  if (course.includes("1-9") || course.includes("1–9") || layout.includes("1-9") || layout.includes("1–9")) return false;
+
   for (let i = 1; i <= holes; i++) {
     const v = parseInt(row[`Hole${i}`], 10);
     if (Number.isNaN(v) || v <= 0) return false;

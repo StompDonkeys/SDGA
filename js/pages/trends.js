@@ -138,7 +138,7 @@ async function main() {
   const playerColours = {
     ArmyGeddon: "rgba(25, 118, 210, 1)",
     Jobby: "rgba(56, 142, 60, 1)",
-    Youare22: "rgba(245, 124, 0, 1)",
+    Youare22: "rgba(25, 118, 210, 1)",
     Miza: "rgba(123, 31, 162, 1)",
     Bucis: "rgba(198, 40, 40, 1)",
   };

@@ -23,12 +23,47 @@ const allowedPlayers = ["ArmyGeddon", "Jobby", "Bucis", "Miza", "Youare22"];
 function groupByCategory(badges) {
   const map = new Map();
   for (const b of badges) {
-    if (!map.has(b.category)) map.set(b.category, []);
-    map.get(b.category).push(b);
+    const cat = b.category || "Other";
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat).push(b);
   }
-  const order = ["Aces", "No Mugsy", "Ratings", "Rounds"];
-  return order.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
+
+  // Preferred display order (anything else gets appended alphabetically).
+  const preferred = ["Aces", "No Mugsy", "Birdie Sweep", "Ratings", "Rounds"];
+  const remaining = [...map.keys()].filter((k) => !preferred.includes(k)).sort((a, b) => a.localeCompare(b, "en-AU"));
+  const orderedCats = preferred.filter((k) => map.has(k)).concat(remaining);
+
+  const parseFirstInt = (s) => {
+    const m = String(s || "").match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY;
+  };
+
+  // Sort items within specific categories.
+  for (const cat of orderedCats) {
+    const items = map.get(cat) || [];
+    if (cat === "Rounds" || cat === "Ratings") {
+      // Sort by numeric threshold (e.g., 20, 50, 100 ... or 150/200 rating)
+      items.sort((a, b) => {
+        const na = parseFirstInt(a.title);
+        const nb = parseFirstInt(b.title);
+        if (na !== nb) return na - nb;
+        // Tie-breaker: show unlocked first, then alpha
+        if (!!a.achieved !== !!b.achieved) return a.achieved ? -1 : 1;
+        return String(a.title || "").localeCompare(String(b.title || ""), "en-AU");
+      });
+    } else {
+      // Default: unlocked first, then alphabetical
+      items.sort((a, b) => {
+        if (!!a.achieved !== !!b.achieved) return a.achieved ? -1 : 1;
+        return String(a.title || "").localeCompare(String(b.title || ""), "en-AU");
+      });
+    }
+    map.set(cat, items);
+  }
+
+  return orderedCats.map((k) => [k, map.get(k)]);
 }
+
 
 function badgeCard(b) {
   const img = b.achieved ? b.img : b.lockedImg;
@@ -68,27 +103,6 @@ function badgeCard(b) {
 }
 
 
-
-function parseFirstNumber(str) {
-  const m = String(str || "").match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY;
-}
-
-function sortBadgesForCategory(cat, items) {
-  const arr = items.slice();
-  if (cat === "Rounds") {
-    // Sort milestone badges 20 -> 300 regardless of locked/unlocked
-    arr.sort((a, b) => parseFirstNumber(a.title) - parseFirstNumber(b.title));
-    return arr;
-  }
-  if (cat === "Ratings") {
-    arr.sort((a, b) => parseFirstNumber(a.title) - parseFirstNumber(b.title));
-    return arr;
-  }
-  // Default: keep original order (as defined in badges.json)
-  return arr;
-}
-
 function renderBadges(playerName, badges, badgeDefs, els) {
   const { awardsContainer, awardsCount, awardsSub } = els;
 
@@ -102,26 +116,16 @@ function renderBadges(playerName, badges, badgeDefs, els) {
 
   awardsContainer.innerHTML = grouped
     .map(([cat, items]) => {
-      const sorted = sortBadgesForCategory(cat, items);
-
-      // For Rounds/Ratings we want strict numeric order; for others keep unlocked first.
-      const shouldKeepStrictOrder = cat === "Rounds" || cat === "Ratings";
-      const displayItems = shouldKeepStrictOrder
-        ? sorted
-        : [
-            ...sorted.filter((b) => b.achieved),
-            ...sorted.filter((b) => !b.achieved),
-          ];
+      const unlocked = items.filter((b) => b.achieved);
+      const locked = items.filter((b) => !b.achieved);
 
       return `
         <section class="badge-section">
           <h3 class="badge-section-title">${cat}</h3>
           <div class="badge-grid">
-            ${displayItems.map(badgeCard).join("")}
+            ${unlocked.map(badgeCard).join("")}
+            ${locked.map(badgeCard).join("")}
           </div>
-        </section>
-      `;
-    })
         </section>
       `;
     })

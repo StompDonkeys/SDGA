@@ -26,8 +26,17 @@ function groupByCategory(badges) {
     if (!map.has(b.category)) map.set(b.category, []);
     map.get(b.category).push(b);
   }
-  const order = ["Aces", "No Mugsy", "Ratings", "Rounds"];
-  return order.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
+
+  // Preferred display order; anything else is appended afterwards
+  const order = ["Aces", "No Mugsy", "Birdie Sweep", "Ratings", "Rounds"];
+
+  const ordered = order.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
+  const remaining = Array.from(map.keys())
+    .filter((k) => !order.includes(k))
+    .sort((a, b) => a.localeCompare(b, "en-AU"))
+    .map((k) => [k, map.get(k)]);
+
+  return [...ordered, ...remaining];
 }
 
 function badgeCard(b) {
@@ -100,8 +109,6 @@ function renderBadges(playerName, badges, badgeDefs, els) {
 async function initAwards() {
   setupSidebar();
 
-  const MANIFEST_VERSION = 1;
-
   const playerSelect = document.getElementById("playerSelect");
   const awardsContainer = document.getElementById("awardsContainer");
   const awardsCount = document.getElementById("awardsCount");
@@ -115,7 +122,7 @@ async function initAwards() {
   playerSelect.value = sortedPlayers[0];
 
   try {
-    const badgeDefsRes = await fetch(`badges.json?v=${MANIFEST_VERSION}`);
+    const badgeDefsRes = await fetch('badges.json');
     const badgeDefs = await badgeDefsRes.json();
 
     const rounds = await loadRounds({

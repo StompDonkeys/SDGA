@@ -100,6 +100,8 @@ function renderBadges(playerName, badges, badgeDefs, els) {
 async function initAwards() {
   setupSidebar();
 
+  const MANIFEST_VERSION = 1;
+
   const playerSelect = document.getElementById("playerSelect");
   const awardsContainer = document.getElementById("awardsContainer");
   const awardsCount = document.getElementById("awardsCount");
@@ -113,7 +115,7 @@ async function initAwards() {
   playerSelect.value = sortedPlayers[0];
 
   try {
-    const badgeDefsRes = await fetch('badges.json');
+    const badgeDefsRes = await fetch(`badges.json?v=${MANIFEST_VERSION}`);
     const badgeDefs = await badgeDefsRes.json();
 
     const rounds = await loadRounds({

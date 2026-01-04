@@ -32,7 +32,13 @@
     <section class="trend-controls" style="margin-top: 10px;">
       <div class="control">
         <label for="playerSelect">Player</label>
-        <select id="playerSelect" aria-label="Select Player"></select>
+        <select id="playerSelect" aria-label="Select Player">
+  <option value="Armageddon">Armageddon</option>
+  <option value="Jobby">Jobby</option>
+  <option value="Bucis">Bucis</option>
+  <option value="Miza">Miza</option>
+  <option value="Youare22">Youare22</option>
+</select>
       </div>
     </section>
 
@@ -47,6 +53,18 @@
     <section id="awardsContainer"></section>
   </main>
 
-  <script type="module" src="js/pages/awards.js?v=8"></script>
+  <script>
+  (function() {
+    try {
+      var sel = document.getElementById('playerSelect');
+      if (!sel) return;
+      if (sel.options && sel.options.length > 0) return; // already populated
+      var players = ["Armageddon","Jobby","Bucis","Miza","Youare22"];
+      sel.innerHTML = players.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      sel.value = players[0];
+    } catch (e) {}
+  })();
+</script>
+  <script type="module" src="js/pages/awards.js?v=9"></script>
 </body>
 </html>

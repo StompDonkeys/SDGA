@@ -112,10 +112,13 @@ async function main() {
   const allowedPlayers = ["ArmyGeddon", "Jobby", "Bucis", "Miza", "Youare22"];
 
   // Load player rounds + Par rows (needed for hole table)
-  const rows = await loadRounds({
+  let rows = await loadRounds({
     filterComplete: true,
     includePlayers: [...allowedPlayers, "Par"],
   });
+
+  // Exclude short / test courses (safety net — most are removed by the 18-hole completeness rule)
+  rows = rows.filter(r => !/Gold Creek Course 1-9/i.test(r.CourseName));
 
   const playerRows = rows.filter(r => r.PlayerName !== "Par");
   const parRows = rows.filter(r => r.PlayerName === "Par");

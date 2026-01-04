@@ -26,17 +26,8 @@ function groupByCategory(badges) {
     if (!map.has(b.category)) map.set(b.category, []);
     map.get(b.category).push(b);
   }
-
-  // Preferred display order; anything else is appended afterwards
-  const order = ["Aces", "No Mugsy", "Birdie Sweep", "Ratings", "Rounds"];
-
-  const ordered = order.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
-  const remaining = Array.from(map.keys())
-    .filter((k) => !order.includes(k))
-    .sort((a, b) => a.localeCompare(b, "en-AU"))
-    .map((k) => [k, map.get(k)]);
-
-  return [...ordered, ...remaining];
+  const order = ["Aces", "No Mugsy", "Ratings", "Rounds"];
+  return order.filter((k) => map.has(k)).map((k) => [k, map.get(k)]);
 }
 
 function badgeCard(b) {
@@ -77,6 +68,27 @@ function badgeCard(b) {
 }
 
 
+
+function parseFirstNumber(str) {
+  const m = String(str || "").match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY;
+}
+
+function sortBadgesForCategory(cat, items) {
+  const arr = items.slice();
+  if (cat === "Rounds") {
+    // Sort milestone badges 20 -> 300 regardless of locked/unlocked
+    arr.sort((a, b) => parseFirstNumber(a.title) - parseFirstNumber(b.title));
+    return arr;
+  }
+  if (cat === "Ratings") {
+    arr.sort((a, b) => parseFirstNumber(a.title) - parseFirstNumber(b.title));
+    return arr;
+  }
+  // Default: keep original order (as defined in badges.json)
+  return arr;
+}
+
 function renderBadges(playerName, badges, badgeDefs, els) {
   const { awardsContainer, awardsCount, awardsSub } = els;
 
@@ -90,16 +102,26 @@ function renderBadges(playerName, badges, badgeDefs, els) {
 
   awardsContainer.innerHTML = grouped
     .map(([cat, items]) => {
-      const unlocked = items.filter((b) => b.achieved);
-      const locked = items.filter((b) => !b.achieved);
+      const sorted = sortBadgesForCategory(cat, items);
+
+      // For Rounds/Ratings we want strict numeric order; for others keep unlocked first.
+      const shouldKeepStrictOrder = cat === "Rounds" || cat === "Ratings";
+      const displayItems = shouldKeepStrictOrder
+        ? sorted
+        : [
+            ...sorted.filter((b) => b.achieved),
+            ...sorted.filter((b) => !b.achieved),
+          ];
 
       return `
         <section class="badge-section">
           <h3 class="badge-section-title">${cat}</h3>
           <div class="badge-grid">
-            ${unlocked.map(badgeCard).join("")}
-            ${locked.map(badgeCard).join("")}
+            ${displayItems.map(badgeCard).join("")}
           </div>
+        </section>
+      `;
+    })
         </section>
       `;
     })

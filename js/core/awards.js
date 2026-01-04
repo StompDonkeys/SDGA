@@ -1,5 +1,5 @@
 import { parseUtcTimestampHHmm } from "./dates.js";
-import { inferHoleCount } from "./rounds.js";
+import { inferHoleCount, isRoundComplete } from "./rounds.js";
 
 function parseDate(s) {
   return parseUtcTimestampHHmm(s) || new Date(0);
@@ -13,16 +13,19 @@ function fmtDate(d) {
   }
 }
 
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
+}
+
 function buildParIndex(rounds) {
-  // key: course||layout -> { holeCount, pars[] }
   const out = new Map();
-  const parRows = rounds.filter(r => r.PlayerName === "Par");
+  const parRows = rounds.filter((r) => r.PlayerName === "Par");
   for (const r of parRows) {
     const key = `${r.CourseName}||${r.LayoutName}`;
-    const holeCount = inferHoleCount(r);
+    const holeCount = Math.max(18, inferHoleCount(r));
     const pars = [];
-    for (let i=1;i<=holeCount;i++){
-      const v = parseInt(r[`Hole${i}`],10);
+    for (let i = 1; i <= holeCount; i++) {
+      const v = parseInt(r[`Hole${i}`], 10);
       pars.push(Number.isFinite(v) ? v : 3);
     }
     out.set(key, { holeCount, pars });
@@ -30,173 +33,260 @@ function buildParIndex(rounds) {
   return out;
 }
 
+function getParInfo(parIndex, rowOrDef) {
+  const course = rowOrDef.CourseName ?? rowOrDef.courseName;
+  const layout = rowOrDef.LayoutName ?? rowOrDef.layoutName;
+  return parIndex.get(`${course}||${layout}`);
+}
+
 function hasBogey(row, parInfo) {
-  const holeCount = parInfo?.holeCount || inferHoleCount(row) || 18;
+  const holeCount = parInfo?.holeCount || Math.max(18, inferHoleCount(row));
   const pars = parInfo?.pars || [];
-  for (let i=1;i<=holeCount;i++){
-    const s = parseInt(row[`Hole${i}`],10);
-    const p = pars[i-1] ?? 3;
+  for (let i = 1; i <= holeCount; i++) {
+    const s = parseInt(row[`Hole${i}`], 10);
+    const p = pars[i - 1] ?? 3;
     if (Number.isFinite(s) && Number.isFinite(p) && s > p) return true;
   }
   return false;
 }
 
 function aceEvents(rows) {
-  // returns [{date, course, layout, hole}]
   const ev = [];
   for (const r of rows) {
-    const holeCount = inferHoleCount(r);
-    for (let i=1;i<=holeCount;i++){
-      const s = parseInt(r[`Hole${i}`],10);
+    const holeCount = Math.max(18, inferHoleCount(r));
+    for (let i = 1; i <= holeCount; i++) {
+      const s = parseInt(r[`Hole${i}`], 10);
       if (s === 1) {
-        ev.push({ date: parseDate(r.StartDate), course: r.CourseName, layout: r.LayoutName, hole: i });
+        ev.push({
+          date: parseDate(r.StartDate),
+          course: r.CourseName,
+          layout: r.LayoutName,
+          hole: i,
+        });
       }
     }
   }
-  ev.sort((a,b)=>a.date-b.date);
+  ev.sort((a, b) => a.date - b.date);
   return ev;
 }
 
 function discRatingAt(points, idx) {
-  // points sorted asc: [{date, rating}]
-  const window = points.slice(Math.max(0, idx-19), idx+1).map(p=>p.rating).filter(v=>v>0);
+  const window = points
+    .slice(Math.max(0, idx - 19), idx + 1)
+    .map((p) => p.rating)
+    .filter((v) => v > 0);
   if (!window.length) return 0;
-  const sorted = window.slice().sort((a,b)=>b-a);
+  const sorted = window.slice().sort((a, b) => b - a);
   const top = sorted.slice(0, Math.min(8, sorted.length));
-  return top.reduce((s,v)=>s+v,0)/top.length;
+  return top.reduce((s, v) => s + v, 0) / top.length;
 }
 
-export function computeAwards(rounds, playerName) {
-  const playerRounds = rounds.filter(r => r.PlayerName === playerName);
-  const allRoundsNoPar = rounds.filter(r => r.PlayerName !== "Par");
+function matchCourseLayout(row, def) {
+  if (def.courseName && row.CourseName !== def.courseName) return false;
+  if (def.layoutName && row.LayoutName !== def.layoutName) return false;
+  return true;
+}
+
+function computeBirdieSweep(playerRounds, parIndex, def) {
+  // For each hole, find first date where score < par on that hole (birdie or better)
+  const holesFirst = new Map(); // hole -> date
+  const eligible = playerRounds
+    .filter((r) => isRoundComplete(r))
+    .filter((r) => matchCourseLayout(r, def))
+    .slice()
+    .sort((a, b) => parseDate(a.StartDate) - parseDate(b.StartDate));
+
+  if (!eligible.length) return { achieved: false, date: null, progress: { current: 0, target: 18 } };
+
+  const parInfo = getParInfo(parIndex, def) || getParInfo(parIndex, eligible[0]);
+  const holeCount = parInfo?.holeCount || 18;
+  const pars = parInfo?.pars || new Array(holeCount).fill(3);
+
+  for (const r of eligible) {
+    const d = parseDate(r.StartDate);
+    for (let i = 1; i <= holeCount; i++) {
+      if (holesFirst.has(i)) continue;
+      const s = parseInt(r[`Hole${i}`], 10);
+      const p = pars[i - 1] ?? 3;
+      if (Number.isFinite(s) && Number.isFinite(p) && s > 0 && s < p) {
+        holesFirst.set(i, d);
+      }
+    }
+    if (holesFirst.size === holeCount) break;
+  }
+
+  const progress = { current: holesFirst.size, target: holeCount };
+
+  if (holesFirst.size !== holeCount) return { achieved: false, date: null, progress };
+
+  // Award date = when last missing hole was birdied the first time (max of first-birdie dates)
+  let awardDate = new Date(0);
+  let lastHole = null;
+  for (const [hole, date] of holesFirst.entries()) {
+    if (date > awardDate) {
+      awardDate = date;
+      lastHole = hole;
+    }
+  }
+  return { achieved: true, date: awardDate, progress: { current: holeCount, target: holeCount }, lastHole };
+}
+
+export function computeAwardsFromDefs(rounds, playerName, badgeDefs) {
+  const allRounds = rounds.filter((r) => r.PlayerName !== "Par");
+  const playerRounds = allRounds.filter((r) => r.PlayerName === playerName);
 
   const parIndex = buildParIndex(rounds);
 
-  // helper to find milestone date (Nth round)
-  const chronological = playerRounds.slice().sort((a,b)=>parseDate(a.StartDate)-parseDate(b.StartDate));
+  const chronological = playerRounds.slice().sort((a, b) => parseDate(a.StartDate) - parseDate(b.StartDate));
+  const ratedChron = chronological.filter((r) => (parseInt(r.RoundRating, 10) || 0) > 0);
 
-  // Count rounds that have a rating (per earlier decisions)
-  const ratedChron = chronological.filter(r => (parseInt(r.RoundRating,10) || 0) > 0);
-
-  const awards = [];
-
-  // --- Aces ---
   const aces = aceEvents(playerRounds);
-  const firstAce = aces[0] || null;
-  awards.push({
-    id: "AceClub_1",
-    category: "Aces",
-    title: "First Ace",
-    achieved: !!firstAce,
-    awardedDate: firstAce ? fmtDate(firstAce.date) : null,
-    description: firstAce ? `Ace on Hole ${firstAce.hole} at ${firstAce.course} (${firstAce.layout}).` : "Record an ace (a hole score of 1).",
-    img: "images/badges/Badge_AceClub_1.png",
-    lockedImg: "images/Badges_locked/Locked_AceClub_1.png"
-  });
 
-  const fifthAce = aces.length >= 5 ? aces[4] : null;
-  awards.push({
-    id: "AceClub_5",
-    category: "Aces",
-    title: "5 Aces",
-    achieved: !!fifthAce,
-    awardedDate: fifthAce ? fmtDate(fifthAce.date) : null,
-    description: fifthAce ? `Your 5th ace was on Hole ${fifthAce.hole} at ${fifthAce.course} (${fifthAce.layout}).` : "Record 5 total aces.",
-    img: "images/badges/Badge_AceClub_5.png",
-    lockedImg: "images/Badges_locked/Locked_AceClub_5.png"
-  });
-
-  // --- No Mugsy (no bogeys) per course badge ---
-  const mugsyBadges = [
-    { id:"Mugsy_BelcoA", title:"No Mugsy – Belco (A)", displayCourse:"John Knight Memorial Park (Belco A)", match:(c,l)=>/John Knight Memorial Park/i.test(c) && /\(A-Pin Position\)|A-Pin|Layout.*A/i.test(l) },
-    { id:"Mugsy_BelcoB", title:"No Mugsy – Belco (B)", displayCourse:"John Knight Memorial Park (Belco B)", match:(c,l)=>/John Knight Memorial Park/i.test(c) && /\(B-Pin Position\)|B-Pin|Layout.*B/i.test(l) },
-    { id:"Mugsy_Tuggies", title:"No Mugsy – Tuggies", displayCourse:"Athllon Park (Tuggies)", match:(c,l)=>/Athllon Park/i.test(c) },
-    { id:"Mugsy_WestonParkWhite", title:"No Mugsy – Weston Park (White Tees)", displayCourse:"Weston Park (White Tees)", match:(c,l)=>/Weston Park White Tees/i.test(c) || /Weston Park/i.test(c) && /White/i.test(l) },
-    { id:"Mugsy_Woden", title:"No Mugsy – Woden", displayCourse:"Edison Park (Woden)", match:(c,l)=>/Edison Park/i.test(c) || /Woden/i.test(c) },
-  ];
-
-  for (const b of mugsyBadges) {
-    let achievedRow = null;
-    for (const r of chronological) {
-      const key = `${r.CourseName}||${r.LayoutName}`;
-      const parInfo = parIndex.get(key);
-      if (!b.match(r.CourseName, r.LayoutName)) continue;
-      if (!hasBogey(r, parInfo)) { achievedRow = r; break; }
-    }
-    const d = achievedRow ? parseDate(achievedRow.StartDate) : null;
-    awards.push({
-      id: b.id,
-      category: "No Mugsy",
-      title: b.title,
-      achieved: !!achievedRow,
-      awardedDate: d ? fmtDate(d) : null,
-      description: achievedRow
-        ? `No bogeys at ${achievedRow.CourseName} (${achievedRow.LayoutName}). Score: ${achievedRow.Total} (${achievedRow["+/-"]}).`
-        : `Get a bogey free round at ${b.displayCourse}.`,
-      img: `images/badges/Badge_${b.id}.png`,
-      lockedImg: `images/Badges_locked/Locked_${b.id}.png`
-    });
-  }
-
-  // --- Ratings ---
-  // Round rating 200+
   const ratedByDate = playerRounds
-    .map(r => ({ row:r, date: parseDate(r.StartDate), rating: parseInt(r.RoundRating,10)||0 }))
-    .filter(x => x.rating > 0)
-    .sort((a,b)=>a.date-b.date);
+    .map((r) => ({ row: r, date: parseDate(r.StartDate), rating: parseInt(r.RoundRating, 10) || 0 }))
+    .filter((x) => x.rating > 0)
+    .sort((a, b) => a.date - b.date);
 
-  const round200 = ratedByDate.find(x => x.rating >= 200) || null;
-  awards.push({
-    id: "Rating_200_Round",
-    category: "Ratings",
-    title: "200 Round Rating",
-    achieved: !!round200,
-    awardedDate: round200 ? fmtDate(round200.date) : null,
-    description: round200 ? `Round rating ${round200.rating} at ${round200.row.CourseName} (${round200.row.LayoutName}).` : "Achieve a round rating of 200+.",
-    img: "images/badges/Badge_Rating_200_Round.png",
-    lockedImg: "images/Badges_locked/Locked_Rating_200_Round.png"
-  });
+  const latestDiscRating = (() => {
+    if (!ratedByDate.length) return 0;
+    return discRatingAt(ratedByDate, ratedByDate.length - 1);
+  })();
 
-  // Disc rating 200+ (best 8 of last 20)
-  let disc200 = null;
-  for (let i=0;i<ratedByDate.length;i++){
-    const disc = discRatingAt(ratedByDate, i);
-    if (disc >= 200) { disc200 = { date: ratedByDate[i].date, disc }; break; }
+  const bestRoundRating = ratedByDate.reduce((m, x) => Math.max(m, x.rating), 0);
+
+  const out = [];
+
+  for (const def of badgeDefs) {
+    const base = {
+      id: def.id,
+      category: def.category,
+      title: def.title,
+      img: def.img,
+      lockedImg: def.lockedImg,
+      achieved: false,
+      awardedDate: null,
+      description: "",
+      // Progress support (for sliders/bars)
+      progress: null, // { current, target, pct, label }
+    };
+
+    const setProgress = (current, target, label) => {
+      const pct = target > 0 ? clamp((current / target) * 100, 0, 100) : 0;
+      base.progress = { current, target, pct, label };
+    };
+
+    if (def.type === "ace_count") {
+      const target = def.count || 1;
+      const current = aces.length;
+      const idx = target - 1;
+      const event = aces[idx] || null;
+
+      base.achieved = !!event;
+      base.awardedDate = event ? fmtDate(event.date) : null;
+
+      if (base.achieved) {
+        base.description = `Ace on Hole ${event.hole} at ${event.course} (${event.layout}).`;
+        setProgress(target, target, `${target}/${target} aces`);
+      } else {
+        base.description = `Record ${target} total ace${target === 1 ? "" : "s"} (a hole score of 1).`;
+        setProgress(current, target, `${Math.min(current, target)}/${target} aces`);
+      }
+    }
+
+    if (def.type === "no_mugsy") {
+      let achievedRow = null;
+      for (const r of chronological) {
+        if (!isRoundComplete(r)) continue;
+        if (!matchCourseLayout(r, def)) continue;
+        const parInfo = getParInfo(parIndex, r);
+        if (!hasBogey(r, parInfo)) {
+          achievedRow = r;
+          break;
+        }
+      }
+      base.achieved = !!achievedRow;
+      base.awardedDate = achievedRow ? fmtDate(parseDate(achievedRow.StartDate)) : null;
+      base.description = achievedRow
+        ? `No bogeys at ${achievedRow.CourseName} (${achievedRow.LayoutName}). Score: ${achievedRow.Total} (${achievedRow["+/-"]}).`
+        : `Get a bogey free round at ${def.courseName}.`;
+      // No progress bar (binary)
+    }
+
+    if (def.type === "round_rating") {
+      const threshold = def.threshold || 200;
+      const hit = ratedByDate.find((x) => x.rating >= threshold) || null;
+
+      base.achieved = !!hit;
+      base.awardedDate = hit ? fmtDate(hit.date) : null;
+
+      if (base.achieved) {
+        base.description = `Round rating ${hit.rating} at ${hit.row.CourseName} (${hit.row.LayoutName}).`;
+        setProgress(threshold, threshold, `${threshold}+ achieved`);
+      } else {
+        base.description = `Achieve a round rating of ${threshold}+.`;
+        setProgress(bestRoundRating, threshold, `Best: ${bestRoundRating}/${threshold}`);
+      }
+    }
+
+    if (def.type === "disc_rating") {
+      const threshold = def.threshold || 200;
+      let discHit = null;
+      for (let i = 0; i < ratedByDate.length; i++) {
+        const disc = discRatingAt(ratedByDate, i);
+        if (disc >= threshold) {
+          discHit = { date: ratedByDate[i].date, disc };
+          break;
+        }
+      }
+
+      base.achieved = !!discHit;
+      base.awardedDate = discHit ? fmtDate(discHit.date) : null;
+
+      if (base.achieved) {
+        base.description = `All‑time rating reached ${Math.round(discHit.disc)} (best 8 of last 20).`;
+        setProgress(threshold, threshold, `${threshold}+ achieved`);
+      } else {
+        base.description = `Reach an all‑time rating of ${threshold} (best 8 of last 20).`;
+        setProgress(Math.round(latestDiscRating), threshold, `Current: ${Math.round(latestDiscRating)}/${threshold}`);
+      }
+    }
+
+    if (def.type === "rounds_milestone") {
+      const n = def.count || 0;
+      const reached = ratedChron.length >= n;
+
+      base.achieved = reached;
+      base.awardedDate = reached ? fmtDate(parseDate(ratedChron[n - 1].StartDate)) : null;
+
+      if (reached) {
+        base.description = `Congratulations on your ${n}th round of StompDonkey Disc Golf.`;
+        setProgress(n, n, `${n}/${n} rounds`);
+      } else {
+        base.description = `Play ${n} rounds. You have ${Math.max(0, n - ratedChron.length)} rounds to go.`;
+        setProgress(ratedChron.length, n, `${Math.min(ratedChron.length, n)}/${n} rounds`);
+      }
+    }
+
+    if (def.type === "birdie_sweep") {
+      const res = computeBirdieSweep(playerRounds, parIndex, def);
+      base.achieved = res.achieved;
+      base.awardedDate = res.achieved ? fmtDate(res.date) : null;
+
+      if (base.achieved) {
+        base.description = `Birdied every hole at least once at ${def.courseName}. Last new birdie was Hole ${res.lastHole}.`;
+        setProgress(res.progress.target, res.progress.target, `${res.progress.target}/${res.progress.target} holes`);
+      } else {
+        base.description = `Birdie every hole at least once at ${def.courseName}.`;
+        setProgress(res.progress.current, res.progress.target, `${res.progress.current}/${res.progress.target} holes`);
+      }
+    }
+
+    out.push(base);
   }
-  awards.push({
-    id: "Rating_200_AllTime",
-    category: "Ratings",
-    title: "200 All‑Time Rating",
-    achieved: !!disc200,
-    awardedDate: disc200 ? fmtDate(disc200.date) : null,
-    description: disc200 ? `All‑time rating reached ${Math.round(disc200.disc)} (best 8 of last 20).` : "Reach an all‑time rating of 200 (best 8 of last 20 rounds).",
-    img: "images/badges/Badge_Rating_200_AllTime.png",
-    lockedImg: "images/Badges_locked/Locked_Rating_200_AllTime.png"
-  });
 
-  // --- Round milestones (rated rounds) ---
-  const milestones = [20, 50, 100, 150, 200, 250, 300];
-  for (const n of milestones) {
-    const reached = ratedChron.length >= n;
-    const row = reached ? ratedChron[n-1] : null;
-    const d = row ? parseDate(row.StartDate) : null;
-    awards.push({
-      id: `Rounds_${n}`,
-      category: "Rounds",
-      title: `${n} Rounds`,
-      achieved: reached,
-      awardedDate: d ? fmtDate(d) : null,
-      description: reached
-        ? `Congratulations on your ${n}th round of StompDonkey Disc Golf.`
-        : `Play ${n} rounds. You have ${Math.max(0, n - ratedChron.length)} rounds to go.`,
-      img: `images/badges/Badge_Rounds_${n}.png`,
-      lockedImg: `images/Badges_locked/Locked_Rounds_${n}.png`
-    });
-  }
-
-  return awards;
+  return out;
 }
 
-export function allBadgeCount(badges) {
-  return Array.isArray(badges) ? badges.length : 0;
+export function allBadgeCountFromDefs(badgeDefs) {
+  return Array.isArray(badgeDefs) ? badgeDefs.length : 0;
 }

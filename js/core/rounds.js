@@ -17,7 +17,10 @@ export function inferHoleCount(row) {
 }
 
 export function isRoundComplete(row) {
+  // A "complete" round must have at least 18 holes recorded (some courses may have more).
   const holes = inferHoleCount(row);
+  if (holes < 18) return false;
+
   for (let i = 1; i <= holes; i++) {
     const v = parseInt(row[`Hole${i}`], 10);
     if (Number.isNaN(v) || v <= 0) return false;

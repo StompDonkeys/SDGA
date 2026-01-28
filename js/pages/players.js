@@ -1,9 +1,10 @@
 // players.js
 // Players page rendering + charts
-// - Current Rating: average of best 8 round ratings from most recent 20 rounds
-// - Chart:
-///   Blue = Monthly average Round Rating
-///   Orange = Rating (best 8 of last 20), sampled at each month (NOT an 8-month moving average)
+// Rating rule:
+//   Current Rating = average of best 8 RoundRating values from the most recent 20 rounds.
+// Charts (per-round, fixes tooltip + “blue line” mismatch):
+//   Blue   = Round Rating (each round)
+//   Orange = Rating (best 8 of last 20), recalculated at each round point
 
 import { toSydneyISODate, parseCalendarDate } from "../core/dates.js";
 import { formatPlusMinus } from "../core/format.js";
@@ -29,7 +30,7 @@ function getPlayerColor(name, alpha = 1) {
   const hex = colors[name] || "#555";
   if (alpha === 1) return hex;
 
-  // Convert hex -> rgba
+  // hex -> rgba
   const h = hex.replace("#", "");
   const r = parseInt(h.substring(0, 2), 16);
   const g = parseInt(h.substring(2, 4), 16);
@@ -77,7 +78,6 @@ function best8OfLast20Average(ratingsChrono) {
 }
 
 function calculateCurrentRating(roundsNewestFirst) {
-  // roundsNewestFirst: newest -> oldest
   const last20 = roundsNewestFirst.slice(0, 20);
   const ratings = last20
     .map((r) => normaliseRating(r.RoundRating))
@@ -93,8 +93,7 @@ function calculateCurrentRating(roundsNewestFirst) {
 }
 
 function calculatePreviousRating(roundsNewestFirst) {
-  // Previous = same rule but “step back” by one top-score selection
-  // (your existing logic: take best 8 excluding the top 1; i.e. slice(1,9))
+  // Your legacy behaviour: best 8 excluding the top 1 (slice(1,9))
   const last20 = roundsNewestFirst.slice(0, 20);
   const ratings = last20
     .map((r) => normaliseRating(r.RoundRating))
@@ -150,7 +149,6 @@ function getBestScoresPerCourse(rounds) {
 function getJourneyOverview(playerName, roundsNewestFirst) {
   if (!roundsNewestFirst.length) return "";
 
-  // Oldest round is at the end (because we store newest -> oldest)
   const firstRound = roundsNewestFirst[roundsNewestFirst.length - 1];
   const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString("en-US", {
     month: "long",
@@ -184,61 +182,47 @@ function getJourneyOverview(playerName, roundsNewestFirst) {
 }
 
 // ----------------------
-// Chart series builders
+// Chart series builders (PER-ROUND)
 // ----------------------
-function buildMonthlySeries(roundsNewestFirst) {
-  // We want the x-axis in chronological order (old -> new)
+function buildPerRoundSeries(roundsNewestFirst) {
   const roundsChrono = roundsNewestFirst
     .slice()
     .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate));
 
-  // Map YYYY-MM -> {ratings: [], rounds: []}
-  const monthMap = new Map();
-  for (const r of roundsChrono) {
-    const ym = convertToSydneyDate(r.StartDate).slice(0, 7);
-    const rating = normaliseRating(r.RoundRating);
-    if (!monthMap.has(ym)) monthMap.set(ym, { ratings: [], rounds: [] });
-    if (rating !== null) monthMap.get(ym).ratings.push(rating);
-    monthMap.get(ym).rounds.push(r);
+  const points = roundsChrono
+    .map((r) => {
+      const rating = normaliseRating(r.RoundRating);
+      if (rating === null) return null;
+      return {
+        date: convertToSydneyDate(r.StartDate), // full date label
+        rating,
+        round: r
+      };
+    })
+    .filter(Boolean);
+
+  const labels = points.map((p) => p.date);
+  const blue = points.map((p) => Number(p.rating.toFixed(2)));
+
+  // Orange = rating metric at each round (best 8 of last 20 up to this round)
+  const orange = [];
+  const running = [];
+
+  for (const p of points) {
+    running.push(p.rating);
+
+    // Gate behaviour:
+    // - show metric once at least 8 rated rounds exist
+    // If you want STRICT "last 20" behaviour before showing anything, change 8 -> 20.
+    if (running.length < 8) {
+      orange.push(null);
+    } else {
+      const metric = best8OfLast20Average(running);
+      orange.push(metric === null ? null : Number(metric.toFixed(2)));
+    }
   }
 
-  const months = Array.from(monthMap.keys()); // already chronological because roundsChrono was chronological
-
-  // Blue: average round rating per month
-  const monthlyAvgRatings = months.map((ym) => {
-    const vals = monthMap.get(ym).ratings;
-    if (!vals.length) return null;
-    const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-    return Number(avg.toFixed(2));
-  });
-
-  // Orange: Rating metric (best 8 of last 20 rounds) sampled at each month
-  // Build a chronological array of ratings by round (not monthly)
-  const ratingsByRoundChrono = roundsChrono
-    .map((r) => normaliseRating(r.RoundRating))
-    .filter((n) => n !== null);
-
-  // Also track rating-by-round with its month, so we can slice “up to month”
-  const ratingPoints = roundsChrono
-    .map((r) => ({
-      ym: convertToSydneyDate(r.StartDate).slice(0, 7),
-      rating: normaliseRating(r.RoundRating)
-    }))
-    .filter((x) => x.rating !== null);
-
-  const ratingMetricByMonth = months.map((monthKey) => {
-    const upToMonthRatings = ratingPoints.filter((x) => x.ym <= monthKey).map((x) => x.rating);
-
-    // Choose your gating:
-    // - If you want the metric as soon as they have 8 rounds, keep < 8 null.
-    // - If you want strict “last 20” behaviour, require 20 rounds.
-    if (upToMonthRatings.length < 8) return null;
-
-    const metric = best8OfLast20Average(upToMonthRatings);
-    return metric === null ? null : Number(metric.toFixed(2));
-  });
-
-  return { months, monthlyAvgRatings, ratingMetricByMonth, monthMap };
+  return { labels, blue, orange, points };
 }
 
 // ----------------------
@@ -279,8 +263,12 @@ function renderPlayers(rounds) {
     hasProfiles = true;
 
     const totalRounds = roundsForPlayer.length;
-    const totalScores = roundsForPlayer.map((r) => parseInt(r.Total, 10)).filter((s) => Number.isFinite(s) && s > 0);
+    const totalScores = roundsForPlayer
+      .map((r) => parseInt(r.Total, 10))
+      .filter((s) => Number.isFinite(s) && s > 0);
+
     const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : "N/A";
+
     const totalPlusMinus = roundsForPlayer
       .map((r) => parseInt(r["+/-"], 10))
       .filter((n) => Number.isFinite(n))
@@ -321,12 +309,11 @@ function renderPlayers(rounds) {
 
     container.appendChild(card);
 
-    // Build series + render chart
-    const { months, monthlyAvgRatings, ratingMetricByMonth, monthMap } = buildMonthlySeries(roundsForPlayer);
+    // Build per-round series + render chart
+    const { labels, blue, orange, points } = buildPerRoundSeries(roundsForPlayer);
 
-    // Only render if there is at least one value to plot
-    const hasAnyBlue = monthlyAvgRatings.some((v) => v !== null);
-    const hasAnyOrange = ratingMetricByMonth.some((v) => v !== null);
+    const hasAnyBlue = blue.some((v) => v !== null);
+    const hasAnyOrange = orange.some((v) => v !== null);
 
     if (!hasAnyBlue && !hasAnyOrange) {
       console.log(`No valid ratings for ${player}, skipping chart`);
@@ -339,11 +326,11 @@ function renderPlayers(rounds) {
     const chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: months,
+        labels,
         datasets: [
           {
-            label: "Round Rating (monthly avg)",
-            data: monthlyAvgRatings,
+            label: "Round Rating",
+            data: blue,
             borderColor: getPlayerColor(player),
             backgroundColor: getPlayerColor(player, 0.2),
             fill: false,
@@ -353,7 +340,7 @@ function renderPlayers(rounds) {
           },
           {
             label: "Rating (best 8 of last 20)",
-            data: ratingMetricByMonth,
+            data: orange,
             borderColor: "rgba(255, 159, 64, 1)",
             backgroundColor: "rgba(255, 159, 64, 0.2)",
             fill: false,
@@ -402,14 +389,14 @@ function renderPlayers(rounds) {
             enabled: false,
             external: function (context) {
               const tooltip = context.tooltip;
-              if (tooltip.opacity === 0) return;
+              if (!tooltip || tooltip.opacity === 0) return;
 
-              const index = tooltip.dataPoints[0].dataIndex;
-              const monthKey = months[index];
+              const dp = tooltip.dataPoints?.[0];
+              if (!dp) return;
 
-              // Choose a representative round for the month (latest in that month)
-              const monthRounds = monthMap.get(monthKey)?.rounds || [];
-              const representative = monthRounds.length ? monthRounds[monthRounds.length - 1] : null;
+              const idx = dp.dataIndex;
+              const p = points[idx];
+              if (!p) return;
 
               let tooltipEl = document.getElementById("chartjs-tooltip");
               if (!tooltipEl) {
@@ -418,35 +405,27 @@ function renderPlayers(rounds) {
                 tooltipEl.style.position = "absolute";
                 tooltipEl.style.background = "rgba(0, 0, 0, 0.8)";
                 tooltipEl.style.color = "#fff";
-                tooltipEl.style.padding = "5px 10px";
-                tooltipEl.style.borderRadius = "3px";
+                tooltipEl.style.padding = "8px 12px";
+                tooltipEl.style.borderRadius = "4px";
+                tooltipEl.style.pointerEvents = "none";
+                tooltipEl.style.maxWidth = "320px";
                 document.body.appendChild(tooltipEl);
               }
 
-              const blue = monthlyAvgRatings[index];
-              const orange = ratingMetricByMonth[index];
-
               const content = `
-                <strong>Month:</strong> ${monthKey}<br>
-                <strong>Monthly avg:</strong> ${blue ?? "N/A"}<br>
-                <strong>Rating (best 8 of 20):</strong> ${orange ?? "N/A"}<br>
-                ${
-                  representative
-                    ? `<hr style="border:0;border-top:1px solid rgba(255,255,255,0.2);margin:6px 0;">
-                       <strong>Example round:</strong><br>
-                       <strong>Date:</strong> ${convertToSydneyDate(representative.StartDate)}<br>
-                       <strong>Score:</strong> ${representative.Total} ${formatPlusMinus(representative["+/-"])}<br>
-                       <strong>Round rating:</strong> ${representative.RoundRating || "N/A"}<br>
-                       <strong>Course:</strong> ${representative.CourseName}`
-                    : ""
-                }
+                <strong>Date:</strong> ${p.date}<br>
+                <strong>Score:</strong> ${p.round.Total} ${formatPlusMinus(p.round["+/-"])}<br>
+                <strong>Round rating:</strong> ${p.round.RoundRating || "N/A"}<br>
+                <strong>Course:</strong> ${p.round.CourseName}<br>
+                <hr style="border:0;border-top:1px solid rgba(255,255,255,0.2);margin:8px 0;">
+                <strong>Rating (best 8 of 20):</strong> ${orange[idx] ?? "N/A"}
               `;
 
               tooltipEl.innerHTML = content;
 
               const pos = context.chart.canvas.getBoundingClientRect();
-              tooltipEl.style.left = pos.left + tooltip.caretX + "px";
-              tooltipEl.style.top = pos.top + tooltip.caretY + "px";
+              tooltipEl.style.left = pos.left + window.pageXOffset + tooltip.caretX + "px";
+              tooltipEl.style.top = pos.top + window.pageYOffset + tooltip.caretY + "px";
               tooltipEl.style.opacity = 1;
             }
           },
@@ -477,9 +456,9 @@ function renderPlayers(rounds) {
       });
     }
 
-    // Optional sanity check: the last orange point should align with Current Rating
-    // (within rounding / gating rules)
-    console.log(`[${player}] Current Rating card: ${currentRating}; Chart last orange: ${ratingMetricByMonth.at(-1)}`);
+    // Sanity check: last orange point should match the card current rating (within rounding),
+    // provided the chart includes all rated rounds and the gating isn't stricter than the card.
+    console.log(`[${player}] Current Rating card: ${currentRating}; Chart last orange: ${orange.at(-1)}`);
   });
 
   if (!hasProfiles) {

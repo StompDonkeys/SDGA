@@ -1,12 +1,6 @@
 // players.js
-// Players page rendering + charts
-// Rating rule:
-//   Rating = average of best 8 RoundRating values from the most recent 20 rounds.
-// Chart (clean default):
-//   Blue   = Round Rating as SCATTER (no line) to avoid clutter
-//   Orange = Rating (best 8 of last 20) as LINE
-// Year filter:
-//   Default "All", can drill into each year. Filter updates chart + current rating display.
+// Player profiles with dropdown select, compare mode, tiled stats, and charts.
+// Rating rule: best 8 of last 20 RoundRating values.
 
 import { toSydneyISODate, parseCalendarDate } from "../core/dates.js";
 import { formatPlusMinus } from "../core/format.js";
@@ -15,23 +9,22 @@ import { loadRounds } from "../core/data.js";
 // ----------------------
 // Config
 // ----------------------
-const players = ["ArmyGeddon", "Jobby", "Bucis", "Miza", "Youare22"];
+const PLAYERS = ["ArmyGeddon", "Jobby", "Bucis", "Miza", "Youare22"];
+
+const PLAYER_COLORS = {
+  ArmyGeddon: "#1976d2",
+  Jobby: "#388e3c",
+  Youare22: "#f57c00",
+  Miza: "#7b1fa2",
+  Bucis: "#c62828"
+};
 
 // ----------------------
 // UI helpers
 // ----------------------
 function getPlayerColor(name, alpha = 1) {
-  const colors = {
-    ArmyGeddon: "#1976d2",
-    Jobby: "#388e3c",
-    Youare22: "#f57c00",
-    Miza: "#7b1fa2",
-    Bucis: "#c62828"
-  };
-
-  const hex = colors[name] || "#555";
+  const hex = PLAYER_COLORS[name] || "#555";
   if (alpha === 1) return hex;
-
   const h = hex.replace("#", "");
   const r = parseInt(h.substring(0, 2), 16);
   const g = parseInt(h.substring(2, 4), 16);
@@ -40,16 +33,15 @@ function getPlayerColor(name, alpha = 1) {
 }
 
 function convertToSydneyDate(utcDateStr) {
-  return toSydneyISODate(utcDateStr); // expected YYYY-MM-DD
+  return toSydneyISODate(utcDateStr);
 }
+
 function parseCustomDate(dateStr) {
   return parseCalendarDate(dateStr);
 }
 
 function getYearFromRound(round) {
-  // Use the converted ISO date for consistent year extraction
   const iso = convertToSydneyDate(round.StartDate);
-  // iso is YYYY-MM-DD
   return iso ? iso.slice(0, 4) : "";
 }
 
@@ -61,9 +53,7 @@ if (hamburger && sidebar) {
     sidebar.style.display = sidebar.style.display === "none" ? "block" : "none";
   });
   document.querySelectorAll(".sidebar ul li a").forEach((link) => {
-    link.addEventListener("click", () => {
-      sidebar.style.display = "none";
-    });
+    link.addEventListener("click", () => { sidebar.style.display = "none"; });
   });
 }
 
@@ -84,108 +74,143 @@ function best8OfLast20Average(ratingsChrono) {
 
 function calculateCurrentRating(roundsNewestFirst) {
   const last20 = roundsNewestFirst.slice(0, 20);
-  const ratings = last20
-    .map((r) => normaliseRating(r.RoundRating))
-    .filter((n) => n !== null);
-
+  const ratings = last20.map((r) => normaliseRating(r.RoundRating)).filter((n) => n !== null);
   if (!ratings.length) return "N/A";
   const best8 = ratings.slice().sort((a, b) => b - a).slice(0, 8);
   if (!best8.length) return "N/A";
-
-  const avg = best8.reduce((sum, v) => sum + v, 0) / best8.length;
-  return avg.toFixed(2);
+  return (best8.reduce((sum, v) => sum + v, 0) / best8.length).toFixed(1);
 }
 
 function calculatePreviousRating(roundsNewestFirst) {
-  // Legacy behaviour kept: best 8 excluding top 1 (slice(1,9))
   const last20 = roundsNewestFirst.slice(0, 20);
-  const ratings = last20
-    .map((r) => normaliseRating(r.RoundRating))
-    .filter((n) => n !== null);
-
+  const ratings = last20.map((r) => normaliseRating(r.RoundRating)).filter((n) => n !== null);
   if (!ratings.length) return "N/A";
-
   const sorted = ratings.slice().sort((a, b) => b - a);
   const alt8 = sorted.slice(1, 9);
   if (!alt8.length) return "N/A";
-
-  const avg = alt8.reduce((sum, v) => sum + v, 0) / alt8.length;
-  return avg.toFixed(2);
+  return (alt8.reduce((sum, v) => sum + v, 0) / alt8.length).toFixed(1);
 }
 
 function getRatingMovement(current, previous) {
-  if (current === "N/A" || previous === "N/A") return "";
+  if (current === "N/A" || previous === "N/A") return { text: "", cls: "" };
   const diff = Number.parseFloat(current) - Number.parseFloat(previous);
-  if (!Number.isFinite(diff)) return "";
-  return diff > 0 ? `(+${diff.toFixed(2)})` : diff < 0 ? `(${diff.toFixed(2)})` : "(±0.00)";
+  if (!Number.isFinite(diff)) return { text: "", cls: "" };
+  if (diff > 0) return { text: `+${diff.toFixed(1)}`, cls: "trend-up" };
+  if (diff < 0) return { text: diff.toFixed(1), cls: "trend-down" };
+  return { text: "0.0", cls: "trend-neutral" };
 }
 
 // ----------------------
 // Stats helpers
 // ----------------------
 function countAces(rounds) {
-  let aceCount = 0;
+  let count = 0;
   rounds.forEach((round) => {
     for (let i = 1; i <= 18; i++) {
-      if (parseInt(round[`Hole${i}`], 10) === 1) aceCount++;
+      if (parseInt(round[`Hole${i}`], 10) === 1) count++;
     }
   });
-  return aceCount;
+  return count;
 }
 
-function getBestScoresPerCourse(rounds) {
-  const bestScores = {};
-  rounds.forEach((round) => {
-    const course = round.CourseName;
-    const total = parseInt(round.Total, 10);
-    const plusMinus = parseInt(round["+/-"], 10);
-    const date = convertToSydneyDate(round.StartDate);
+function getAvgPlusMinus(rounds) {
+  const vals = rounds.map((r) => parseInt(r["+/-"], 10)).filter((n) => Number.isFinite(n));
+  if (!vals.length) return "N/A";
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+}
 
+function getTotalPlusMinus(rounds) {
+  return rounds.map((r) => parseInt(r["+/-"], 10)).filter((n) => Number.isFinite(n)).reduce((a, b) => a + b, 0);
+}
+
+function getAvgScore(rounds) {
+  const scores = rounds.map((r) => parseInt(r.Total, 10)).filter((s) => Number.isFinite(s) && s > 0);
+  if (!scores.length) return "N/A";
+  return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+}
+
+function getBestRound(rounds) {
+  let best = null;
+  rounds.forEach((r) => {
+    const total = parseInt(r.Total, 10);
+    const pm = parseInt(r["+/-"], 10);
     if (!Number.isFinite(total)) return;
-
-    if (!bestScores[course] || total < parseInt(bestScores[course].total, 10)) {
-      bestScores[course] = { total, plusMinus, date };
+    if (!best || total < best.total || (total === best.total && pm < best.pm)) {
+      best = { total, pm, course: r.CourseName, date: convertToSydneyDate(r.StartDate) };
     }
   });
-  return bestScores;
+  return best;
 }
 
-function getJourneyOverview(playerName, roundsNewestFirst) {
-  if (!roundsNewestFirst.length) return "";
+function getBestRating(rounds) {
+  let best = null;
+  rounds.forEach((r) => {
+    const rating = normaliseRating(r.RoundRating);
+    if (rating === null) return;
+    if (!best || rating > best.rating) {
+      best = { rating, course: r.CourseName, date: convertToSydneyDate(r.StartDate) };
+    }
+  });
+  return best;
+}
 
-  const firstRound = roundsNewestFirst[roundsNewestFirst.length - 1];
-  const firstMonthYear = new Date(parseCustomDate(firstRound.StartDate)).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric"
+/**
+ * Birdie-to-Bogey %: Of all birdies scored, what % are immediately followed
+ * by a bogey on the next hole (within the same round).
+ * Requires par data from the CSV.
+ */
+function calcBirdieToBogey(rounds, parIndex) {
+  let birdies = 0;
+  let birdieThenBogey = 0;
+
+  rounds.forEach((round) => {
+    const key = `${round.CourseName}|||${round.LayoutName || ""}`;
+    const pars = parIndex[key];
+    if (!pars) return;
+
+    for (let i = 1; i <= 17; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      const nextScore = parseInt(round[`Hole${i + 1}`], 10);
+      const nextPar = parseInt(pars[`Hole${i + 1}`], 10);
+
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      if (!Number.isFinite(nextScore) || !Number.isFinite(nextPar)) continue;
+
+      if (score < par) {
+        // This hole was a birdie (or better)
+        birdies++;
+        if (nextScore > nextPar) {
+          // Next hole was a bogey (or worse)
+          birdieThenBogey++;
+        }
+      }
+    }
   });
 
-  const validRatingsChrono = roundsNewestFirst
-    .slice()
-    .sort((a, b) => parseCustomDate(a.StartDate) - parseCustomDate(b.StartDate))
-    .map((r) => ({ rating: normaliseRating(r.RoundRating), ...r }))
-    .filter((r) => r.rating !== null);
-
-  if (!validRatingsChrono.length) {
-    return `<p>Journey Overview: ${playerName} first appeared in ${firstMonthYear}. No valid ratings available yet.</p>`;
-  }
-
-  const earlyLow = validRatingsChrono[0];
-  const peak = validRatingsChrono.reduce((max, cur) => (max.rating > cur.rating ? max : cur), validRatingsChrono[0]);
-  const peakPlusMinus = formatPlusMinus(peak["+/-"]);
-
-  return `<p>Journey Overview: ${playerName} first appeared in ${firstMonthYear} and shows improvement. Their RoundRating rose from ${
-    earlyLow.rating
-  } at ${earlyLow.CourseName} in ${new Date(parseCustomDate(earlyLow.StartDate)).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric"
-  })} to ${peak.rating} ${peakPlusMinus} at ${peak.CourseName} in ${new Date(parseCustomDate(peak.StartDate)).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric"
-  })}.</p>`;
+  if (birdies === 0) return { pct: "N/A", birdies: 0, followedByBogey: 0 };
+  return {
+    pct: ((birdieThenBogey / birdies) * 100).toFixed(1) + "%",
+    birdies,
+    followedByBogey: birdieThenBogey
+  };
 }
 
 // ----------------------
-// Filtering
+// Par index builder
+// ----------------------
+function buildParIndex(allRows) {
+  const idx = {};
+  allRows.forEach((row) => {
+    if (row.PlayerName !== "Par") return;
+    const key = `${row.CourseName}|||${row.LayoutName || ""}`;
+    idx[key] = row;
+  });
+  return idx;
+}
+
+// ----------------------
+// Year filtering
 // ----------------------
 function filterRoundsByYear(roundsNewestFirst, year) {
   if (!year || year === "All") return roundsNewestFirst;
@@ -198,11 +223,11 @@ function getAvailableYears(roundsNewestFirst) {
     const y = getYearFromRound(r);
     if (y) years.add(y);
   });
-  return Array.from(years).sort(); // ascending
+  return Array.from(years).sort();
 }
 
 // ----------------------
-// Chart series builders (PER-ROUND, clean)
+// Chart series
 // ----------------------
 function buildPerRoundSeries(roundsNewestFirst) {
   const roundsChrono = roundsNewestFirst
@@ -213,26 +238,19 @@ function buildPerRoundSeries(roundsNewestFirst) {
     .map((r) => {
       const rating = normaliseRating(r.RoundRating);
       if (rating === null) return null;
-      return {
-        date: convertToSydneyDate(r.StartDate), // YYYY-MM-DD
-        rating,
-        round: r
-      };
+      return { date: convertToSydneyDate(r.StartDate), rating, round: r };
     })
     .filter(Boolean);
 
   const labels = points.map((p) => p.date);
-
-  // Blue: round rating (dots only)
   const blue = points.map((p) => Number(p.rating.toFixed(2)));
 
-  // Orange: rating metric at each round (best 8 of last 20 up to this round)
   const orange = [];
   const running = [];
   for (const p of points) {
     running.push(p.rating);
     if (running.length < 8) {
-      orange.push(null); // change 8 -> 20 if you want strict last-20 before showing anything
+      orange.push(null);
     } else {
       const metric = best8OfLast20Average(running);
       orange.push(metric === null ? null : Number(metric.toFixed(2)));
@@ -243,7 +261,7 @@ function buildPerRoundSeries(roundsNewestFirst) {
 }
 
 // ----------------------
-// Chart creation / update
+// Chart creation
 // ----------------------
 function createPlayerChart(ctx, player, series) {
   const { labels, blue, orange, points } = series;
@@ -259,8 +277,8 @@ function createPlayerChart(ctx, player, series) {
           borderColor: getPlayerColor(player),
           backgroundColor: getPlayerColor(player, 0.25),
           fill: false,
-          tension: 0,            // no smoothing for dots
-          showLine: false,       // KEY: dots only (scatter style)
+          tension: 0,
+          showLine: false,
           pointRadius: 3,
           pointHoverRadius: 6
         },
@@ -282,13 +300,7 @@ function createPlayerChart(ctx, player, series) {
       scales: {
         x: {
           title: { display: true, text: "Date", color: "#2e2e2e", font: { family: "Oswald", size: 14 } },
-          ticks: {
-            color: "#2e2e2e",
-            maxRotation: 45,
-            minRotation: 45,
-            autoSkip: true,
-            maxTicksLimit: 10
-          }
+          ticks: { color: "#2e2e2e", maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 10 }
         },
         y: {
           title: { display: true, text: "Rating", color: "#2e2e2e", font: { family: "Oswald", size: 14 } },
@@ -301,21 +313,15 @@ function createPlayerChart(ctx, player, series) {
       plugins: {
         legend: {
           position: "top",
-          labels: {
-            color: "#2e2e2e",
-            font: { family: "Oswald", size: 12 },
-            usePointStyle: false
-          }
+          labels: { color: "#2e2e2e", font: { family: "Oswald", size: 12 } }
         },
         tooltip: {
           enabled: false,
           external: function (context) {
             const tooltip = context.tooltip;
             if (!tooltip || tooltip.opacity === 0) return;
-
             const dp = tooltip.dataPoints?.[0];
             if (!dp) return;
-
             const idx = dp.dataIndex;
             const p = points[idx];
             if (!p) return;
@@ -324,14 +330,7 @@ function createPlayerChart(ctx, player, series) {
             if (!tooltipEl) {
               tooltipEl = document.createElement("div");
               tooltipEl.id = "chartjs-tooltip";
-              tooltipEl.style.position = "absolute";
-              tooltipEl.style.background = "rgba(0, 0, 0, 0.85)";
-              tooltipEl.style.color = "#fff";
-              tooltipEl.style.padding = "8px 12px";
-              tooltipEl.style.borderRadius = "4px";
-              tooltipEl.style.pointerEvents = "none";
-              tooltipEl.style.maxWidth = "320px";
-              tooltipEl.style.zIndex = 9999;
+              tooltipEl.style.cssText = "position:absolute;background:rgba(0,0,0,0.85);color:#fff;padding:8px 12px;border-radius:4px;pointer-events:none;max-width:320px;z-index:9999;";
               document.body.appendChild(tooltipEl);
             }
 
@@ -355,7 +354,6 @@ function createPlayerChart(ctx, player, series) {
           pan: { enabled: true, mode: "x" }
         }
       },
-      // Click-to-lock tooltip (blue dataset)
       onClick: (event, elements) => {
         if (elements.length > 0) {
           const idx = elements[0].index;
@@ -366,224 +364,181 @@ function createPlayerChart(ctx, player, series) {
     }
   });
 
-  // Clear tooltip on mouse/touch end
   const canvas = ctx.canvas;
-  canvas.addEventListener("mouseup", () => {
-    chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-    chart.update();
-  });
-  canvas.addEventListener("touchend", () => {
-    chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-    chart.update();
-  });
+  canvas.addEventListener("mouseup", () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
+  canvas.addEventListener("touchend", () => { chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update(); });
 
   return chart;
 }
 
-function updatePlayerChart(chart, series) {
-  const { labels, blue, orange, points } = series;
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = blue;
-  chart.data.datasets[1].data = orange;
-
-  // Update tooltip closure data by reattaching a reference
-  // (We store points on chart instance for access in external tooltip)
-  chart.$points = points;
-  chart.$orange = orange;
-
-  chart.update();
+// ----------------------
+// Stat tile builder
+// ----------------------
+function statTile(label, value, sub) {
+  return `<div class="pp-tile">
+    <div class="pp-tile-label">${label}</div>
+    <div class="pp-tile-value">${value}</div>
+    ${sub ? `<div class="pp-tile-sub">${sub}</div>` : ""}
+  </div>`;
 }
 
 // ----------------------
-// Render
+// Render a single player panel
 // ----------------------
-function renderPlayers(rounds) {
-  const data = rounds || [];
-  const filteredData = data.filter((r) => players.includes(r.PlayerName));
-  const playerList = players.slice().sort((a, b) => a.localeCompare(b, "en-AU"));
-
-  const playerData = {};
-  playerList.forEach((player) => {
-    // newest -> oldest
-    playerData[player] = filteredData
-      .filter((row) => row.PlayerName === player)
-      .sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
-  });
-
-  const container = document.getElementById("player-profiles");
+function renderPlayerPanel(player, rounds, parIndex, panelId, chartId) {
+  const container = document.getElementById(panelId);
   if (!container) return;
 
+  const color = getPlayerColor(player);
+
+  // Stats
+  const totalRounds = rounds.length;
+  const avgScore = getAvgScore(rounds);
+  const avgPM = getAvgPlusMinus(rounds);
+  const totalPM = getTotalPlusMinus(rounds);
+  const aceCount = countAces(rounds);
+  const bestRound = getBestRound(rounds);
+  const bestRating = getBestRating(rounds);
+  const currentRating = calculateCurrentRating(rounds);
+  const previousRating = calculatePreviousRating(rounds);
+  const movement = getRatingMovement(currentRating, previousRating);
+  const b2b = calcBirdieToBogey(rounds, parIndex);
+
+  const bestRoundText = bestRound
+    ? `${bestRound.total} ${formatPlusMinus(bestRound.pm)}`
+    : "N/A";
+  const bestRoundSub = bestRound
+    ? `${bestRound.course}<br>${bestRound.date}`
+    : "";
+
+  const bestRatingSub = bestRating
+    ? `${bestRating.course}<br>${bestRating.date}`
+    : "";
+
+  const movementHtml = movement.text
+    ? `<span class="trend-arrow ${movement.cls}">${movement.text}</span>`
+    : "";
+
+  const b2bSub = b2b.birdies > 0
+    ? `${b2b.followedByBogey} of ${b2b.birdies} birdies`
+    : "";
+
+  container.innerHTML = `
+    <div class="pp-header" style="border-left: 4px solid ${color};">
+      <h3 style="color: ${color};">${player}</h3>
+    </div>
+    <div class="pp-tiles">
+      ${statTile("Rounds", totalRounds)}
+      ${statTile("Avg Score", avgScore)}
+      ${statTile("Avg +/-", avgPM)}
+      ${statTile("Total +/-", formatPlusMinus(totalPM))}
+      ${statTile("Current Rating", currentRating + " " + movementHtml)}
+      ${statTile("Best Round", bestRoundText, bestRoundSub)}
+      ${statTile("Best Rating", bestRating ? bestRating.rating : "N/A", bestRatingSub)}
+      ${statTile("Aces", aceCount)}
+      ${statTile("Birdie-to-Bogey", b2b.pct, b2bSub)}
+    </div>
+    <div class="pp-chart-wrap">
+      <canvas id="${chartId}" class="player-chart"></canvas>
+    </div>
+  `;
+
+  // Create chart
+  const ctx = document.getElementById(chartId)?.getContext("2d");
+  if (!ctx) return null;
+  const series = buildPerRoundSeries(rounds);
+  return createPlayerChart(ctx, player, series);
+}
+
+// ----------------------
+// Main app state
+// ----------------------
+let allRounds = [];
+let parIndex = {};
+let playerData = {};  // { name: rounds newest first }
+let activeCharts = [];
+
+function destroyCharts() {
+  activeCharts.forEach((c) => c && c.destroy());
+  activeCharts = [];
+}
+
+function getRoundsForPlayer(player, year) {
+  const rounds = playerData[player] || [];
+  return filterRoundsByYear(rounds, year);
+}
+
+function render() {
+  const playerSelect = document.getElementById("playerSelect");
+  const yearFilter = document.getElementById("yearFilter");
+  const compareSelect = document.getElementById("compareSelect");
+  const container = document.getElementById("player-profiles");
+
+  const player = playerSelect.value;
+  const year = yearFilter.value;
+  const comparePlayer = compareSelect.value;
+
+  destroyCharts();
   container.innerHTML = "";
-  let hasProfiles = false;
 
-  playerList.forEach((player, index) => {
-    const allRoundsForPlayer = playerData[player];
-    if (!allRoundsForPlayer.length) return;
+  if (!player) return;
 
-    hasProfiles = true;
+  const isCompare = comparePlayer && comparePlayer !== "None" && comparePlayer !== player;
 
-    // Build card shell
-    const card = document.createElement("div");
-    card.className = "record-card player-profile";
-    card.style.animationDelay = `${index * 0.1}s`;
-
-    const canvasId = `chart-${player.toLowerCase()}`;
-    const ratingId = `current-rating-${player.toLowerCase()}`;
-    const movementId = `rating-movement-${player.toLowerCase()}`;
-    const filterId = `year-filter-${player.toLowerCase()}`;
-
-    // Static stats (not filtered) — keep these as lifetime stats
-    const totalRounds = allRoundsForPlayer.length;
-    const totalScores = allRoundsForPlayer
-      .map((r) => parseInt(r.Total, 10))
-      .filter((s) => Number.isFinite(s) && s > 0);
-    const avgScore = totalScores.length ? (totalScores.reduce((a, b) => a + b, 0) / totalScores.length).toFixed(1) : "N/A";
-    const totalPlusMinus = allRoundsForPlayer
-      .map((r) => parseInt(r["+/-"], 10))
-      .filter((n) => Number.isFinite(n))
-      .reduce((a, b) => a + b, 0);
-    const aceCount = countAces(allRoundsForPlayer);
-    const bestScores = getBestScoresPerCourse(allRoundsForPlayer);
-    const bestScoresHtml = Object.entries(bestScores)
-      .map(([course, d]) => `<li><strong>${course}</strong>: ${d.total} ${formatPlusMinus(d.plusMinus)} on ${d.date}</li>`)
-      .join("");
-    const journeyOverview = getJourneyOverview(player, allRoundsForPlayer);
-
-    // Year filter options
-    const years = getAvailableYears(allRoundsForPlayer);
-    const yearOptions = ["All", ...years].map((y) => `<option value="${y}">${y}</option>`).join("");
-
-    card.innerHTML = `
-      <h3>${player}</h3>
-
-      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin: 6px 0 10px;">
-        <label for="${filterId}" style="font-weight:700;">Year:</label>
-        <select id="${filterId}" style="padding:6px 10px; border-radius:6px;">
-          ${yearOptions}
-        </select>
-        <span style="opacity:0.85;">(Default: All)</span>
-      </div>
-
-      <p><strong>Rounds Played:</strong> ${totalRounds}</p>
-      <p><strong>Average Score:</strong> ${avgScore}</p>
-      <p><strong>Best Scores by Course:</strong></p>
-      <ul>${bestScoresHtml}</ul>
-      <p><strong>Total +/-:</strong> ${totalPlusMinus}</p>
-
-      <p><strong>Current Rating:</strong>
-        <span id="${ratingId}">...</span>
-        <span id="${movementId}"></span>
-      </p>
-
-      <p><strong>Ace Count:</strong> ${aceCount}</p>
-      ${journeyOverview}
-
-      <div class="chart-container">
-        <canvas id="${canvasId}" class="player-chart"></canvas>
-      </div>
+  if (isCompare) {
+    container.className = "pp-compare-layout";
+    container.innerHTML = `
+      <div class="pp-panel" id="pp-panel-left"></div>
+      <div class="pp-panel" id="pp-panel-right"></div>
     `;
+    const roundsLeft = getRoundsForPlayer(player, year);
+    const roundsRight = getRoundsForPlayer(comparePlayer, year);
 
-    container.appendChild(card);
-
-    // Chart init with default filter "All"
-    const ctx = document.getElementById(canvasId)?.getContext("2d");
-    if (!ctx) return;
-
-    const applyFilterAndUpdate = (year) => {
-      const filteredRounds = filterRoundsByYear(allRoundsForPlayer, year);
-
-      // Update rating display based on FILTERED view
-      const currentRating = calculateCurrentRating(filteredRounds);
-      const previousRating = calculatePreviousRating(filteredRounds);
-      const movement = getRatingMovement(currentRating, previousRating);
-
-      const ratingEl = document.getElementById(ratingId);
-      const movementEl = document.getElementById(movementId);
-      if (ratingEl) ratingEl.textContent = currentRating;
-      if (movementEl) movementEl.textContent = ` ${movement}`;
-
-      // Build chart series based on FILTERED rounds
-      const series = buildPerRoundSeries(filteredRounds);
-
-      // If chart already exists, update; else create
-      if (applyFilterAndUpdate._chart) {
-        // store points/orange on chart for tooltip use
-        applyFilterAndUpdate._chart.$points = series.points;
-        applyFilterAndUpdate._chart.$orange = series.orange;
-
-        // Update series data
-        applyFilterAndUpdate._chart.data.labels = series.labels;
-        applyFilterAndUpdate._chart.data.datasets[0].data = series.blue;
-        applyFilterAndUpdate._chart.data.datasets[1].data = series.orange;
-
-        applyFilterAndUpdate._chart.update();
-      } else {
-        // Create chart with closures
-        const chart = createPlayerChart(ctx, player, series);
-
-        // Attach series for tooltip access (optional for future use)
-        chart.$points = series.points;
-        chart.$orange = series.orange;
-
-        // Patch tooltip external handler to use attached series when chart updates
-        // (We can’t easily rewrite the function inside Chart.js, so we keep it stable.
-        //  It already uses the series closure created at instantiation. To avoid that,
-        //  we rely on re-creation OR accept that the closure is for this chart instance.)
-        // Simpler: recreate on filter changes would also work, but update is faster.
-        // Our external tooltip currently closes over initial series, so instead we:
-        // - keep the tooltip “round details” driven by BLUE dataset point index
-        // - rebuild the whole chart on filter change (most robust).
-        //
-        // Therefore: we will recreate on each filter change (small cost, best correctness).
-
-        applyFilterAndUpdate._chart = chart;
-        applyFilterAndUpdate._series = series;
-      }
-
-      // If the filtered dataset is huge and still crowded, user can zoom/pan.
-    };
-
-    // Important: to avoid the external tooltip closure becoming stale after updates,
-    // we recreate the chart on each filter change (robust + still fast for these sizes).
-    const recreateChartForYear = (year) => {
-      const filteredRounds = filterRoundsByYear(allRoundsForPlayer, year);
-
-      const currentRating = calculateCurrentRating(filteredRounds);
-      const previousRating = calculatePreviousRating(filteredRounds);
-      const movement = getRatingMovement(currentRating, previousRating);
-
-      const ratingEl = document.getElementById(ratingId);
-      const movementEl = document.getElementById(movementId);
-      if (ratingEl) ratingEl.textContent = currentRating;
-      if (movementEl) movementEl.textContent = ` ${movement}`;
-
-      const series = buildPerRoundSeries(filteredRounds);
-
-      // Destroy prior chart if exists
-      if (applyFilterAndUpdate._chart) {
-        applyFilterAndUpdate._chart.destroy();
-        applyFilterAndUpdate._chart = null;
-      }
-
-      // Create fresh chart with correct tooltip closures
-      applyFilterAndUpdate._chart = createPlayerChart(ctx, player, series);
-    };
-
-    // Initial load (All)
-    recreateChartForYear("All");
-
-    // Hook dropdown
-    const select = document.getElementById(filterId);
-    if (select) {
-      select.addEventListener("change", (e) => {
-        recreateChartForYear(e.target.value);
-      });
-    }
-  });
-
-  if (!hasProfiles) {
-    container.innerHTML = "<p>No player data available. Please check data.csv.</p>";
+    const c1 = renderPlayerPanel(player, roundsLeft, parIndex, "pp-panel-left", "chart-left");
+    const c2 = renderPlayerPanel(comparePlayer, roundsRight, parIndex, "pp-panel-right", "chart-right");
+    if (c1) activeCharts.push(c1);
+    if (c2) activeCharts.push(c2);
+  } else {
+    container.className = "pp-single-layout";
+    container.innerHTML = `<div class="pp-panel pp-panel-single" id="pp-panel-main"></div>`;
+    const rounds = getRoundsForPlayer(player, year);
+    const c = renderPlayerPanel(player, rounds, parIndex, "pp-panel-main", "chart-main");
+    if (c) activeCharts.push(c);
   }
+}
+
+// ----------------------
+// Populate dropdowns
+// ----------------------
+function populateDropdowns() {
+  const playerSelect = document.getElementById("playerSelect");
+  const compareSelect = document.getElementById("compareSelect");
+  const yearFilter = document.getElementById("yearFilter");
+
+  const sorted = PLAYERS.slice().sort((a, b) => a.localeCompare(b, "en-AU"));
+
+  // Player select
+  playerSelect.innerHTML = sorted.map((p, i) =>
+    `<option value="${p}" ${i === 0 ? "selected" : ""}>${p}</option>`
+  ).join("");
+
+  // Compare select
+  compareSelect.innerHTML = `<option value="None">None</option>` +
+    sorted.map((p) => `<option value="${p}">${p}</option>`).join("");
+
+  // Year select — union of all years across all players
+  const allYears = new Set();
+  Object.values(playerData).forEach((rounds) => {
+    getAvailableYears(rounds).forEach((y) => allYears.add(y));
+  });
+  const years = Array.from(allYears).sort();
+  yearFilter.innerHTML = `<option value="All">All</option>` +
+    years.map((y) => `<option value="${y}">${y}</option>`).join("");
+
+  // Event listeners
+  playerSelect.addEventListener("change", render);
+  yearFilter.addEventListener("change", render);
+  compareSelect.addEventListener("change", render);
 }
 
 // ----------------------
@@ -592,8 +547,23 @@ function renderPlayers(rounds) {
 async function main() {
   const container = document.getElementById("player-profiles");
   try {
-    const rounds = await loadRounds({ path: "data.csv", filterComplete: true, includePlayers: players });
-    renderPlayers(rounds);
+    // Load all rows (including Par) for par index
+    const allRows = await loadRounds({ path: "data.csv", filterComplete: false });
+    parIndex = buildParIndex(allRows);
+
+    // Load player rounds
+    const rounds = await loadRounds({ path: "data.csv", filterComplete: true, includePlayers: PLAYERS });
+    allRounds = rounds;
+
+    // Group by player, newest first
+    PLAYERS.forEach((player) => {
+      playerData[player] = rounds
+        .filter((r) => r.PlayerName === player)
+        .sort((a, b) => parseCustomDate(b.StartDate) - parseCustomDate(a.StartDate));
+    });
+
+    populateDropdowns();
+    render();
   } catch (e) {
     console.error(e);
     if (container) {

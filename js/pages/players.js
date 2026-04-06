@@ -101,6 +101,23 @@ function getRatingMovement(current, previous) {
 }
 
 // ----------------------
+// Course filter config
+// ----------------------
+const COURSE_FILTERS = [
+  { label: "Belco", course: "John Knight Memorial Park", layout: null },
+  { label: "Woden", course: "Eddison Park", layout: null },
+  { label: "Weston", course: "Weston Park Disc Golf Course", layout: "White Tees" },
+];
+
+function filterByCourse(rounds, filter) {
+  return rounds.filter((r) => {
+    if (r.CourseName !== filter.course) return false;
+    if (filter.layout && (r.LayoutName || "").trim() !== filter.layout) return false;
+    return true;
+  });
+}
+
+// ----------------------
 // Stats helpers
 // ----------------------
 function countAces(rounds) {
@@ -129,29 +146,48 @@ function getAvgScore(rounds) {
   return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
 }
 
+/** Best round = highest rated round (not lowest score) */
 function getBestRound(rounds) {
   let best = null;
   rounds.forEach((r) => {
+    const rating = normaliseRating(r.RoundRating);
+    if (rating === null) return;
     const total = parseInt(r.Total, 10);
     const pm = parseInt(r["+/-"], 10);
-    if (!Number.isFinite(total)) return;
-    if (!best || total < best.total || (total === best.total && pm < best.pm)) {
-      best = { total, pm, course: r.CourseName, date: convertToSydneyDate(r.StartDate) };
+    if (!best || rating > best.rating) {
+      best = {
+        rating,
+        total: Number.isFinite(total) ? total : null,
+        pm: Number.isFinite(pm) ? pm : null,
+        course: r.CourseName,
+        date: convertToSydneyDate(r.StartDate)
+      };
     }
   });
   return best;
 }
 
-function getBestRating(rounds) {
-  let best = null;
-  rounds.forEach((r) => {
-    const rating = normaliseRating(r.RoundRating);
-    if (rating === null) return;
-    if (!best || rating > best.rating) {
-      best = { rating, course: r.CourseName, date: convertToSydneyDate(r.StartDate) };
-    }
-  });
-  return best;
+/** Build course breakdown sub-text for a stat */
+function courseBreakdownSub(rounds, statFn) {
+  const lines = COURSE_FILTERS.map((f) => {
+    const filtered = filterByCourse(rounds, f);
+    if (!filtered.length) return null;
+    const val = statFn(filtered);
+    return `${f.label}: ${val}`;
+  }).filter(Boolean);
+  return lines.join(" · ");
+}
+
+/** Build per-course best round (highest rated) sub-text */
+function courseBestRoundSub(rounds) {
+  const lines = COURSE_FILTERS.map((f) => {
+    const filtered = filterByCourse(rounds, f);
+    const best = getBestRound(filtered);
+    if (!best) return null;
+    const scoreText = best.total != null ? `${best.total} ${formatPlusMinus(best.pm)}` : "";
+    return `${f.label}: ${scoreText} (${best.rating})`;
+  }).filter(Boolean);
+  return lines.join("<br>");
 }
 
 /**
@@ -398,22 +434,24 @@ function renderPlayerPanel(player, rounds, parIndex, panelId, chartId) {
   const totalPM = getTotalPlusMinus(rounds);
   const aceCount = countAces(rounds);
   const bestRound = getBestRound(rounds);
-  const bestRating = getBestRating(rounds);
   const currentRating = calculateCurrentRating(rounds);
   const previousRating = calculatePreviousRating(rounds);
   const movement = getRatingMovement(currentRating, previousRating);
   const b2b = calcBirdieToBogey(rounds, parIndex);
 
+  // Course breakdowns
+  const avgScoreCourses = courseBreakdownSub(rounds, getAvgScore);
+  const avgPMCourses = courseBreakdownSub(rounds, getAvgPlusMinus);
+  const totalPMCourses = courseBreakdownSub(rounds, (r) => formatPlusMinus(getTotalPlusMinus(r)));
+
+  // Best round = highest rated
   const bestRoundText = bestRound
     ? `${bestRound.total} ${formatPlusMinus(bestRound.pm)}`
     : "N/A";
-  const bestRoundSub = bestRound
-    ? `${bestRound.course}<br>${bestRound.date}`
-    : "";
-
-  const bestRatingSub = bestRating
-    ? `${bestRating.course}<br>${bestRating.date}`
-    : "";
+  const bestRoundRating = bestRound ? `Rating: ${bestRound.rating}` : "";
+  const bestRoundCourseLine = bestRound ? `${bestRound.course} · ${bestRound.date}` : "";
+  const bestRoundCourseSub = courseBestRoundSub(rounds);
+  const bestRoundSubFull = [bestRoundRating, bestRoundCourseLine, bestRoundCourseSub].filter(Boolean).join("<br>");
 
   const movementHtml = movement.text
     ? `<span class="trend-arrow ${movement.cls}">${movement.text}</span>`
@@ -429,12 +467,11 @@ function renderPlayerPanel(player, rounds, parIndex, panelId, chartId) {
     </div>
     <div class="pp-tiles">
       ${statTile("Rounds", totalRounds)}
-      ${statTile("Avg Score", avgScore)}
-      ${statTile("Avg +/-", avgPM)}
-      ${statTile("Total +/-", formatPlusMinus(totalPM))}
+      ${statTile("Avg Score", avgScore, avgScoreCourses)}
+      ${statTile("Avg +/-", avgPM, avgPMCourses)}
+      ${statTile("Total +/-", formatPlusMinus(totalPM), totalPMCourses)}
       ${statTile("Current Rating", currentRating + " " + movementHtml)}
-      ${statTile("Best Round", bestRoundText, bestRoundSub)}
-      ${statTile("Best Rating", bestRating ? bestRating.rating : "N/A", bestRatingSub)}
+      ${statTile("Best Round", bestRoundText, bestRoundSubFull)}
       ${statTile("Aces", aceCount)}
       ${statTile("Birdie-to-Bogey", b2b.pct, b2bSub)}
     </div>

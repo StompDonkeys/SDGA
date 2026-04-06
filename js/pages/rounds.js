@@ -108,8 +108,15 @@ async function main() {
 
   container.innerHTML = "";
 
+  // Count only rounds that have players (for numbering)
+  const playableRounds = roundArray.filter((r) => r.players.length);
+  const totalRounds = playableRounds.length;
+
   roundArray.forEach((round, index) => {
     if (!round.players.length) return;
+
+    // Round number: oldest = 1, newest = totalRounds
+    const roundNumber = totalRounds - playableRounds.indexOf(round);
 
     const dateObj = parseCustomDate(round.date);
     const sydneyDate = formatSydneyDateTime(dateObj);
@@ -180,7 +187,7 @@ async function main() {
     const card = document.createElement("div");
     card.className = "round-card";
     card.innerHTML = `
-      <h3>Round ${index + 1} - ${sydneyDate} ${aceAlert}</h3>
+      <h3>Round ${roundNumber} - ${sydneyDate} ${aceAlert}</h3>
       <p><strong>Course:</strong> ${round.course} (${round.layout})</p>
       <div class="round-summary">${playerSummary}</div>
       ${aceNotesHtml ? `<div class="ace-notes">${aceNotesHtml}</div>` : ""}

@@ -72,7 +72,7 @@ function scoreClass(score, par) {
   return "";
 }
 
-function trendClassAndSymbol(series, threshold = 1) {
+function trendClassAndSymbol(series, threshold = 1, lowerIsBetter = false) {
   if (!series || series.length < 6) return { cls: "trend-neutral", sym: "↕" };
   const last = series.slice(-4).map(p => p.y);
   const prev = series.slice(-8, -4).map(p => p.y);
@@ -80,8 +80,10 @@ function trendClassAndSymbol(series, threshold = 1) {
   const lastAvg = last.reduce((s, v) => s + v, 0) / last.length;
   const prevAvg = prev.reduce((s, v) => s + v, 0) / prev.length;
   const diff = lastAvg - prevAvg;
-  if (diff > threshold) return { cls: "trend-up", sym: "↑" };
-  if (diff < -threshold) return { cls: "trend-down", sym: "↓" };
+  const goodCls = lowerIsBetter ? "trend-down" : "trend-up";
+  const badCls = lowerIsBetter ? "trend-up" : "trend-down";
+  if (diff > threshold) return { cls: lowerIsBetter ? badCls : goodCls, sym: "↑" };
+  if (diff < -threshold) return { cls: lowerIsBetter ? goodCls : badCls, sym: "↓" };
   return { cls: "trend-neutral", sym: "↕" };
 }
 
@@ -359,7 +361,7 @@ async function main() {
       `;
     } else if (metric !== "rating" && roundCount) {
       const avg = ys.reduce((s, v) => s + v, 0) / ys.length;
-      const t = trendClassAndSymbol(points, 0.5);
+      const t = trendClassAndSymbol(points, 0.5, true);
       ratingHtml = `<div class="pp-tile-value">${fmtPlusMinus(avg)} <span class="trend-arrow ${t.cls}">${t.sym}</span></div>`;
     }
 

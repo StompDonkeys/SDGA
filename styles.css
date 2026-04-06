@@ -822,31 +822,38 @@ h2 {
   min-height: 90px;
 }
 
-/* Birdie-to-Bogey ring tile */
-.pp-tile-b2b .pp-tile-b2b-content {
+/* Ring chart tiles (B2B, Bounce Back) */
+.pp-tile-ring .pp-tile-ring-content {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 6px;
 }
-.pp-tile-b2b .pp-tile-b2b-text {
-  flex: 1;
-  text-align: left;
-}
-.pp-tile-b2b canvas {
+.pp-tile-ring canvas {
   flex-shrink: 0;
+}
+
+/* Scoring distribution tile */
+.pp-tile-dist {
+  grid-column: span 2;
+  min-height: 130px;
+}
+.pp-tile-dist canvas {
+  width: 100% !important;
+  max-height: 100px;
 }
 
 @media (max-width: 900px) {
   .trend-tiles {
     grid-template-columns: repeat(3, 1fr);
   }
+  .pp-tile-dist { grid-column: span 3; }
 }
 @media (max-width: 600px) {
   .trend-tiles {
     grid-template-columns: repeat(2, 1fr);
   }
-  .pp-tile-b2b {
-    grid-column: span 2;
-  }
+  .pp-tile-dist { grid-column: span 2; }
+  .pp-tile-ring .pp-tile-ring-content { gap: 6px; }
+  .pp-tile-ring canvas { width: 60px !important; height: 60px !important; }
 }

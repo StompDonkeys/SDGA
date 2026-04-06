@@ -687,3 +687,124 @@ h2 {
   opacity: 0.8;
   line-height: 1.1;
 }
+
+/* ── Player Profiles ── */
+.player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: end;
+  margin: 16px auto 20px;
+  max-width: 1100px;
+}
+.player-controls .control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+.player-controls .control label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.player-controls select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: #fff;
+}
+
+/* Compare layout: two panels side-by-side */
+.pp-compare-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+/* Single layout: one wider panel */
+.pp-single-layout {
+  max-width: 700px;
+  margin: 0 auto;
+}
+.pp-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.10);
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 18px;
+  opacity: 0;
+  animation: fadeIn 0.4s forwards;
+}
+.pp-header {
+  padding-left: 12px;
+  margin-bottom: 14px;
+}
+.pp-header h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Stat tiles grid */
+.pp-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.pp-tile {
+  background: linear-gradient(135deg, #FFF8E1, #fff);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  text-align: center;
+}
+.pp-tile-label {
+  font-weight: 700;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.pp-tile-value {
+  font-weight: 900;
+  font-size: 1.25rem;
+  font-family: 'Oswald', sans-serif;
+}
+.pp-tile-sub {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* Chart inside panel */
+.pp-chart-wrap {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 10px;
+  height: 300px;
+}
+.pp-chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .pp-compare-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .player-controls .control { min-width: 46%; }
+  .pp-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pp-chart-wrap { height: 220px; }
+  .pp-tile-value { font-size: 1.1rem; }
+  .pp-header h3 { font-size: 1.25rem; }
+}

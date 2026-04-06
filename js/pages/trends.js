@@ -31,6 +31,7 @@ function fmtPlusMinus(n) {
   return n > 0 ? `+${fmtNumber(n, 1)}` : fmtNumber(n, 1);
 }
 
+// ── Rolling averages ──
 function computeDiscRatingSeries(points) {
   const series = [];
   for (let i = 0; i < points.length; i++) {
@@ -39,6 +40,17 @@ function computeDiscRatingSeries(points) {
     const sorted = window.slice().sort((a, b) => b - a);
     const top = sorted.slice(0, Math.min(8, sorted.length));
     series.push({ x: points[i].x, y: top.reduce((s, v) => s + v, 0) / top.length });
+  }
+  return series;
+}
+
+/** Rolling average of last N points for +/- trend line */
+function computeRollingAvg(points, windowSize = 10) {
+  const series = [];
+  for (let i = 0; i < points.length; i++) {
+    const window = points.slice(Math.max(0, i - windowSize + 1), i + 1).map(p => p.y);
+    const avg = window.reduce((s, v) => s + v, 0) / window.length;
+    series.push({ x: points[i].x, y: Number(avg.toFixed(2)) });
   }
   return series;
 }
@@ -83,37 +95,123 @@ function buildParIndex(parRows) {
   return idx;
 }
 
-// ── Birdie-to-Bogey ──
+// ── Metric calculations ──
 function calcBirdieToBogey(rounds, parIndex) {
-  let birdies = 0;
-  let birdieThenBogey = 0;
-
+  let birdies = 0, birdieThenBogey = 0;
   rounds.forEach(round => {
-    const key = `${round.CourseName}|||${round.LayoutName || ""}`;
-    const pars = parIndex[key];
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
     if (!pars) return;
-
     for (let i = 1; i <= 17; i++) {
       const score = parseInt(round[`Hole${i}`], 10);
       const par = parseInt(pars[`Hole${i}`], 10);
       const nextScore = parseInt(round[`Hole${i + 1}`], 10);
       const nextPar = parseInt(pars[`Hole${i + 1}`], 10);
-
       if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
       if (!Number.isFinite(nextScore) || !Number.isFinite(nextPar)) continue;
-
-      if (score < par) {
-        birdies++;
-        if (nextScore > nextPar) birdieThenBogey++;
-      }
+      if (score < par) { birdies++; if (nextScore > nextPar) birdieThenBogey++; }
     }
   });
-
   if (birdies === 0) return { pct: 0, birdies: 0, followedByBogey: 0 };
+  return { pct: (birdieThenBogey / birdies) * 100, birdies, followedByBogey: birdieThenBogey };
+}
+
+function calcBounceBack(rounds, parIndex) {
+  let bogeys = 0, bounceBack = 0;
+  rounds.forEach(round => {
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
+    if (!pars) return;
+    for (let i = 1; i <= 17; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      const nextScore = parseInt(round[`Hole${i + 1}`], 10);
+      const nextPar = parseInt(pars[`Hole${i + 1}`], 10);
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      if (!Number.isFinite(nextScore) || !Number.isFinite(nextPar)) continue;
+      if (score > par) { bogeys++; if (nextScore <= nextPar) bounceBack++; }
+    }
+  });
+  if (bogeys === 0) return { pct: 0, bogeys: 0, bouncedBack: 0 };
+  return { pct: (bounceBack / bogeys) * 100, bogeys, bouncedBack: bounceBack };
+}
+
+function calcParOrBetter(rounds, parIndex) {
+  let total = 0, parOrBetter = 0;
+  rounds.forEach(round => {
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
+    if (!pars) return;
+    for (let i = 1; i <= 18; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      total++;
+      if (score <= par) parOrBetter++;
+    }
+  });
+  if (total === 0) return { pct: 0, total: 0, parOrBetter: 0 };
+  return { pct: (parOrBetter / total) * 100, total, parOrBetter };
+}
+
+function calcCleanCardRate(rounds, parIndex) {
+  let eligible = 0, clean = 0;
+  rounds.forEach(round => {
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
+    if (!pars) return;
+    eligible++;
+    let hasBogey = false;
+    for (let i = 1; i <= 18; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      if (score > par) { hasBogey = true; break; }
+    }
+    if (!hasBogey) clean++;
+  });
+  if (eligible === 0) return { pct: 0, eligible: 0, clean: 0 };
+  return { pct: (clean / eligible) * 100, eligible, clean };
+}
+
+function calcScoringDistribution(rounds, parIndex) {
+  const dist = { ace: 0, eagle: 0, birdie: 0, par: 0, bogey: 0, doublePlus: 0 };
+  let total = 0;
+  rounds.forEach(round => {
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
+    if (!pars) return;
+    for (let i = 1; i <= 18; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      total++;
+      const diff = score - par;
+      if (score === 1) dist.ace++;
+      else if (diff <= -2) dist.eagle++;
+      else if (diff === -1) dist.birdie++;
+      else if (diff === 0) dist.par++;
+      else if (diff === 1) dist.bogey++;
+      else dist.doublePlus++;
+    }
+  });
+  return { dist, total };
+}
+
+function calcFront9vsBack9(rounds, parIndex) {
+  let front9Total = 0, front9Sum = 0, back9Total = 0, back9Sum = 0;
+  rounds.forEach(round => {
+    const pars = parIndex[`${round.CourseName}|||${round.LayoutName || ""}`];
+    if (!pars) return;
+    for (let i = 1; i <= 18; i++) {
+      const score = parseInt(round[`Hole${i}`], 10);
+      const par = parseInt(pars[`Hole${i}`], 10);
+      if (!Number.isFinite(score) || !Number.isFinite(par)) continue;
+      const diff = score - par;
+      if (i <= 9) { front9Sum += diff; front9Total++; }
+      else { back9Sum += diff; back9Total++; }
+    }
+  });
   return {
-    pct: (birdieThenBogey / birdies) * 100,
-    birdies,
-    followedByBogey: birdieThenBogey
+    front9: front9Total ? (front9Sum / (front9Total / 9)).toFixed(1) : "N/A",
+    back9: back9Total ? (back9Sum / (back9Total / 9)).toFixed(1) : "N/A",
+    front9Avg: front9Total ? front9Sum / front9Total : null,
+    back9Avg: back9Total ? back9Sum / back9Total : null,
   };
 }
 
@@ -137,6 +235,8 @@ async function main() {
 
   let chartInstance = null;
   let b2bChartInstance = null;
+  let bbChartInstance = null;
+  let distChartInstance = null;
   const ctx = canvas.getContext("2d");
 
   const allowedPlayers = ["ArmyGeddon", "Jobby", "Bucis", "Miza", "Youare22"];
@@ -191,21 +291,44 @@ async function main() {
       .sort((a, b) => a.x - b.x);
   }
 
-  // ── Tile rendering ──
-  function statTile(label, value, sub, extraHtml) {
-    return `<div class="pp-tile">
-      <div class="pp-tile-label">${label}</div>
-      <div class="pp-tile-value">${value}</div>
-      ${sub ? `<div class="pp-tile-sub">${sub}</div>` : ""}
-      ${extraHtml || ""}
-    </div>`;
+  // ── Destroy mini charts ──
+  function destroyMiniCharts() {
+    if (b2bChartInstance) { b2bChartInstance.destroy(); b2bChartInstance = null; }
+    if (bbChartInstance) { bbChartInstance.destroy(); bbChartInstance = null; }
+    if (distChartInstance) { distChartInstance.destroy(); distChartInstance = null; }
   }
 
+  // ── Ring chart helper ──
+  function renderRing(canvasId, filled, total, filledColor, emptyColor) {
+    const el = document.getElementById(canvasId);
+    if (!el) return null;
+    const remaining = Math.max(0, total - filled);
+    return new Chart(el.getContext("2d"), {
+      type: "doughnut",
+      data: {
+        datasets: [{
+          data: total > 0 ? [filled, remaining] : [0, 1],
+          backgroundColor: [filledColor, emptyColor],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: "65%",
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      }
+    });
+  }
+
+  // ── Tile rendering ──
   function renderTiles(points, metric, filtered, selectedPlayer, selectedCourseLayout) {
     if (!tilesContainer) return;
+    destroyMiniCharts();
 
     const roundCount = points.length;
     const ys = points.map(p => p.y);
+    const { course } = parseCourseLayout(selectedCourseLayout);
+    const isAllCourses = course === null;
 
     // Best
     const best = roundCount ? (metric === "rating" ? Math.max(...ys) : Math.min(...ys)) : null;
@@ -215,17 +338,12 @@ async function main() {
     const latest = roundCount ? ys[ys.length - 1] : null;
     const latestText = latest !== null ? fmtNumber(latest, metric === "rating" ? 0 : 1) : "–";
 
-    // Average +/-
-    const avg = roundCount ? ys.reduce((s, v) => s + v, 0) / ys.length : null;
-
-    // Current rating
+    // Current rating / avg +/-
     let ratingHtml = "–";
     if (metric === "rating" && roundCount) {
-      const { course } = parseCourseLayout(selectedCourseLayout);
       const courseDisc = computeDiscRatingSeries(points);
       const courseCurrent = courseDisc.length ? courseDisc[courseDisc.length - 1].y : 0;
       const courseTrend = trendClassAndSymbol(courseDisc, 1);
-
       const overallPoints = playerRows
         .filter(r => r.PlayerName === selectedPlayer)
         .map(r => ({ x: parseCustomDate(r.StartDate), y: parseInt(r.RoundRating, 10) || 0 }))
@@ -233,7 +351,6 @@ async function main() {
       const overallDisc = computeDiscRatingSeries(overallPoints);
       const overallCurrent = overallDisc.length ? overallDisc[overallDisc.length - 1].y : 0;
       const overallTrend = trendClassAndSymbol(overallDisc, 1);
-
       const courseLabel = course || "All Courses";
       ratingHtml = `
         <div class="pp-tile-value">${fmtNumber(courseCurrent, 0)} <span class="trend-arrow ${courseTrend.cls}">${courseTrend.sym}</span></div>
@@ -241,14 +358,34 @@ async function main() {
         <div class="pp-tile-sub" style="margin-top:4px;">Overall: ${fmtNumber(overallCurrent, 0)} <span class="trend-arrow ${overallTrend.cls}">${overallTrend.sym}</span></div>
       `;
     } else if (metric !== "rating" && roundCount) {
+      const avg = ys.reduce((s, v) => s + v, 0) / ys.length;
       const t = trendClassAndSymbol(points, 0.5);
       ratingHtml = `<div class="pp-tile-value">${fmtPlusMinus(avg)} <span class="trend-arrow ${t.cls}">${t.sym}</span></div>`;
     }
 
-    // Birdie-to-Bogey
+    // Metric calcs
     const b2b = calcBirdieToBogey(filtered, parIndex);
-    const b2bPctText = b2b.birdies > 0 ? fmtNumber(b2b.pct, 1) + "%" : "N/A";
-    const b2bSub = b2b.birdies > 0 ? `${b2b.followedByBogey} of ${b2b.birdies} birdies` : "";
+    const bb = calcBounceBack(filtered, parIndex);
+    const pob = calcParOrBetter(filtered, parIndex);
+    const ccr = calcCleanCardRate(filtered, parIndex);
+    const dist = calcScoringDistribution(filtered, parIndex);
+    const f9b9 = calcFront9vsBack9(filtered, parIndex);
+
+    const b2bPct = b2b.birdies > 0 ? fmtNumber(b2b.pct, 1) + "%" : "N/A";
+    const bbPct = bb.bogeys > 0 ? fmtNumber(bb.pct, 1) + "%" : "N/A";
+    const pobPct = pob.total > 0 ? fmtNumber(pob.pct, 1) + "%" : "N/A";
+    const ccrPct = ccr.eligible > 0 ? fmtNumber(ccr.pct, 1) + "%" : "N/A";
+
+    // Front 9 vs Back 9 — only show for specific course
+    const f9b9Html = !isAllCourses
+      ? `<div class="pp-tile">
+          <div class="pp-tile-label">Front 9 vs Back 9</div>
+          <div class="pp-tile-value" style="font-size:1rem;">F: ${fmtPlusMinus(parseFloat(f9b9.front9))} / B: ${fmtPlusMinus(parseFloat(f9b9.back9))}</div>
+          <div class="pp-tile-sub">${f9b9.front9Avg !== null && f9b9.back9Avg !== null
+            ? (parseFloat(f9b9.back9) > parseFloat(f9b9.front9) ? "Fades on back 9" : parseFloat(f9b9.back9) < parseFloat(f9b9.front9) ? "Stronger on back 9" : "Consistent throughout")
+            : ""}</div>
+        </div>`
+      : "";
 
     tilesContainer.innerHTML = `
       <div class="pp-tile">
@@ -267,47 +404,91 @@ async function main() {
         <div class="pp-tile-label">Latest</div>
         <div class="pp-tile-value">${latestText}</div>
       </div>
-      <div class="pp-tile pp-tile-b2b">
+      <div class="pp-tile">
+        <div class="pp-tile-label">Par or Better</div>
+        <div class="pp-tile-value">${pobPct}</div>
+        <div class="pp-tile-sub">${pob.parOrBetter} of ${pob.total} holes</div>
+      </div>
+      <div class="pp-tile pp-tile-ring">
         <div class="pp-tile-label">Birdie-to-Bogey</div>
-        <div class="pp-tile-b2b-content">
-          <canvas id="b2bRingChart" width="90" height="90"></canvas>
-          <div class="pp-tile-b2b-text">
-            <div class="pp-tile-value">${b2bPctText}</div>
-            <div class="pp-tile-sub">${b2bSub}</div>
+        <div class="pp-tile-ring-content">
+          <canvas id="b2bRing" width="80" height="80"></canvas>
+          <div>
+            <div class="pp-tile-value">${b2bPct}</div>
+            <div class="pp-tile-sub">${b2b.birdies > 0 ? `${b2b.followedByBogey} of ${b2b.birdies}` : ""}</div>
           </div>
         </div>
       </div>
+      <div class="pp-tile pp-tile-ring">
+        <div class="pp-tile-label">Bounce Back</div>
+        <div class="pp-tile-ring-content">
+          <canvas id="bbRing" width="80" height="80"></canvas>
+          <div>
+            <div class="pp-tile-value">${bbPct}</div>
+            <div class="pp-tile-sub">${bb.bogeys > 0 ? `${bb.bouncedBack} of ${bb.bogeys}` : ""}</div>
+          </div>
+        </div>
+      </div>
+      <div class="pp-tile">
+        <div class="pp-tile-label">Clean Cards</div>
+        <div class="pp-tile-value">${ccrPct}</div>
+        <div class="pp-tile-sub">${ccr.clean} of ${ccr.eligible} rounds</div>
+      </div>
+      <div class="pp-tile pp-tile-dist">
+        <div class="pp-tile-label">Scoring Distribution</div>
+        <canvas id="distChart" height="100"></canvas>
+      </div>
+      ${f9b9Html}
     `;
 
-    // Render ring chart
-    renderB2bRing(b2b);
+    // Render mini charts
+    b2bChartInstance = renderRing("b2bRing", b2b.followedByBogey, b2b.birdies,
+      "rgba(244, 67, 54, 0.75)", "rgba(76, 175, 80, 0.75)");
+    bbChartInstance = renderRing("bbRing", bb.bouncedBack, bb.bogeys,
+      "rgba(76, 175, 80, 0.75)", "rgba(244, 67, 54, 0.75)");
+    renderDistChart(dist);
   }
 
-  function renderB2bRing(b2b) {
-    if (b2bChartInstance) { b2bChartInstance.destroy(); b2bChartInstance = null; }
-    const ringCanvas = document.getElementById("b2bRingChart");
-    if (!ringCanvas) return;
-    const ringCtx = ringCanvas.getContext("2d");
-
-    const followed = b2b.followedByBogey;
-    const kept = Math.max(0, b2b.birdies - followed);
-
-    b2bChartInstance = new Chart(ringCtx, {
-      type: "doughnut",
+  function renderDistChart(distData) {
+    const el = document.getElementById("distChart");
+    if (!el) return;
+    const { dist, total } = distData;
+    distChartInstance = new Chart(el.getContext("2d"), {
+      type: "bar",
       data: {
-        labels: ["Followed by Bogey", "Kept"],
+        labels: ["Ace", "Eagle", "Birdie", "Par", "Bogey", "Dbl+"],
         datasets: [{
-          data: b2b.birdies > 0 ? [followed, kept] : [0, 1],
-          backgroundColor: ["rgba(244, 67, 54, 0.75)", "rgba(76, 175, 80, 0.75)"],
-          borderWidth: 0
+          data: [dist.ace, dist.eagle, dist.birdie, dist.par, dist.bogey, dist.doublePlus],
+          backgroundColor: [
+            "rgba(76, 175, 80, 0.9)",
+            "rgba(76, 175, 80, 0.65)",
+            "rgba(76, 175, 80, 0.4)",
+            "rgba(255, 193, 7, 0.6)",
+            "rgba(244, 67, 54, 0.5)",
+            "rgba(244, 67, 54, 0.8)",
+          ],
+          borderWidth: 0,
+          borderRadius: 3,
         }]
       },
       options: {
-        responsive: false,
-        cutout: "65%",
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { enabled: false }
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.raw;
+                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                return `${val} (${pct}%)`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10, family: "Oswald" } } },
+          y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, stepSize: Math.max(1, Math.ceil(Math.max(dist.birdie, dist.par, dist.bogey) / 5)) } }
         }
       }
     });
@@ -316,14 +497,8 @@ async function main() {
   // ── Hole table ──
   function renderHoleTable(selectedPlayer, selectedCourseLayout) {
     if (!holeHead || !holeBody || !holeTableSection) return;
-
     const { course, layout } = parseCourseLayout(selectedCourseLayout);
-
-    // Hide hole table for "All Courses"
-    if (course === null) {
-      holeTableSection.style.display = "none";
-      return;
-    }
+    if (course === null) { holeTableSection.style.display = "none"; return; }
     holeTableSection.style.display = "";
 
     const titleEl = document.getElementById("holeTableTitle");
@@ -347,30 +522,26 @@ async function main() {
     const avgVals = scoresByHole.map(arr => arr.length ? (arr.reduce((s, v) => s + v, 0) / arr.length) : null);
 
     const isMobile = window.innerWidth <= 600;
-
     if (isMobile) {
       holeHead.innerHTML = "<tr><th>Hole</th><th>Par</th><th>Best</th><th>Avg</th></tr>";
       holeBody.innerHTML = Array.from({ length: holeCount }, (_, i) => {
         const par = parVals[i], best = bestVals[i], avg = avgVals[i];
-        const bestCls = best === null ? "" : scoreClass(best, par);
-        const avgCls = avg === null ? "" : scoreClass(Math.round(avg), par);
-        return `<tr><td><strong>H${i + 1}</strong></td><td>${par}</td><td class="${bestCls}">${best ?? "–"}</td><td class="${avgCls}">${avg === null ? "–" : fmtNumber(avg, 1)}</td></tr>`;
+        return `<tr><td><strong>H${i + 1}</strong></td><td>${par}</td><td class="${best === null ? "" : scoreClass(best, par)}">${best ?? "–"}</td><td class="${avg === null ? "" : scoreClass(Math.round(avg), par)}">${avg === null ? "–" : fmtNumber(avg, 1)}</td></tr>`;
       }).join("");
       return;
     }
 
     holeHead.innerHTML = "<th>Metric</th>" + Array.from({ length: holeCount }, (_, i) => `<th>H${i + 1}</th>`).join("");
-
     function rowHtml(label, values, formatter, isAvg = false) {
-      const tds = values.map((v, i) => {
+      return `<tr><td>${label}</td>${values.map((v, i) => {
         const cls = v === null ? "" : scoreClass(isAvg ? Math.round(v) : v, parVals[i]);
         return `<td class="${cls}">${v === null ? "–" : formatter(v)}</td>`;
-      }).join("");
-      return `<tr><td>${label}</td>${tds}</tr>`;
+      }).join("")}</tr>`;
     }
-
-    const parRowHtml = `<tr><td>Par</td>${parVals.map(p => `<td>${p}</td>`).join("")}</tr>`;
-    holeBody.innerHTML = parRowHtml + rowHtml("Best", bestVals, v => String(v)) + rowHtml("Avg", avgVals, v => fmtNumber(v, 1), true);
+    holeBody.innerHTML =
+      `<tr><td>Par</td>${parVals.map(p => `<td>${p}</td>`).join("")}</tr>` +
+      rowHtml("Best", bestVals, v => String(v)) +
+      rowHtml("Avg", avgVals, v => fmtNumber(v, 1), true);
   }
 
   // ── Chart update ──
@@ -389,8 +560,8 @@ async function main() {
     const courseLabel = course ? `${course} (${layout})` : "All Courses";
     if (chartTitle) chartTitle.textContent = `${selectedPlayer} • ${courseLabel}`;
     if (chartNote) chartNote.textContent = metric === "rating"
-      ? "Metric: Rating • Includes Disc Rating (best 8 of last 20)"
-      : "Metric: +/-";
+      ? "Metric: Rating • Orange = Disc Rating (best 8 of last 20)"
+      : "Metric: +/- • Orange = Rolling avg (last 10 rounds)";
 
     // Tiles
     renderTiles(points, metric, filtered, selectedPlayer, selectedCourseLayout);
@@ -425,6 +596,19 @@ async function main() {
         pointRadius: 0,
         borderWidth: 3,
       });
+    } else {
+      // +/- metric: add rolling average trend line
+      const rollingAvg = computeRollingAvg(points, 10);
+      datasets.push({
+        label: "Rolling Avg (last 10)",
+        data: rollingAvg,
+        borderColor: "rgba(255, 152, 0, 1)",
+        backgroundColor: "rgba(255, 152, 0, 0.18)",
+        fill: { target: 0, above: "rgba(244, 67, 54, 0.08)", below: "rgba(76, 175, 80, 0.08)" },
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 3,
+      });
     }
 
     if (chartInstance) chartInstance.destroy();
@@ -448,7 +632,7 @@ async function main() {
         },
         plugins: {
           legend: { position: "top" },
-          tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw.y}` } },
+          tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${fmtNumber(context.raw.y, 1)}` } },
         },
       },
     });

@@ -72,19 +72,38 @@ function scoreClass(score, par) {
   return "";
 }
 
+/**
+ * Determines the CSS class and symbol for trend arrows.
+ * For scores (+/-), lowerIsBetter should be true (Down = Green, Up = Red).
+ * For ratings, lowerIsBetter should be false (Up = Green, Down = Red).
+ */
 function trendClassAndSymbol(series, threshold = 1, lowerIsBetter = false) {
   if (!series || series.length < 6) return { cls: "trend-neutral", sym: "↕" };
+  
   const last = series.slice(-4).map(p => p.y);
   const prev = series.slice(-8, -4).map(p => p.y);
+  
   if (prev.length < 4) return { cls: "trend-neutral", sym: "↕" };
+  
   const lastAvg = last.reduce((s, v) => s + v, 0) / last.length;
   const prevAvg = prev.reduce((s, v) => s + v, 0) / prev.length;
   const diff = lastAvg - prevAvg;
-  const goodCls = lowerIsBetter ? "trend-down" : "trend-up";
-  const badCls = lowerIsBetter ? "trend-up" : "trend-down";
-  if (diff > threshold) return { cls: lowerIsBetter ? badCls : goodCls, sym: "↑" };
-  if (diff < -threshold) return { cls: lowerIsBetter ? goodCls : badCls, sym: "↓" };
-  return { cls: "trend-neutral", sym: "↕" };
+
+  if (Math.abs(diff) <= threshold) return { cls: "trend-neutral", sym: "↕" };
+
+  if (diff > threshold) {
+    // Value increased (Worse for scores, Better for ratings)
+    return { 
+      cls: lowerIsBetter ? "trend-down" : "trend-up", 
+      sym: "↑" 
+    };
+  } else {
+    // Value decreased (Better for scores, Worse for ratings)
+    return { 
+      cls: lowerIsBetter ? "trend-up" : "trend-down", 
+      sym: "↓" 
+    };
+  }
 }
 
 // ── Par index ──

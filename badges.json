@@ -217,15 +217,5 @@
     "count": 50,
     "img": "images/badges/Badge_Rounds_50.png",
     "lockedImg": "images/Badges_locked/Locked_Rounds_50.png"
-  },
-  {
-    "id": "BirdieSweep_WestonPark",
-    "category": "Birdie Sweep",
-    "title": "Birdie Sweep \u2013 Weston Park (White Tees)",
-    "type": "birdie_sweep",
-    "courseName": "Weston Park Disc Golf Course",
-    "layoutName": "White Tees ",
-    "img": "images/badges/Badge_BirdieSweep_WestonPark.png",
-    "lockedImg": "images/Badges_locked/Locked_BirdieSweep_WestonPark.png"
   }
 ]

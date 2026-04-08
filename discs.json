@@ -252,6 +252,15 @@
     "type": "Putter"
   },
   {
+    "name": "Cigarra",
+    "manufacturer": "Discraft",
+    "speed": 7,
+    "glide": 5,
+    "turn": -1,
+    "fade": 1,
+    "type": "Fairway Driver"
+  },
+  {
     "name": "Comet",
     "manufacturer": "Discraft",
     "speed": 4,
@@ -558,6 +567,15 @@
     "type": "Midrange"
   },
   {
+    "name": "CD1",
+    "manufacturer": "Discmania",
+    "speed": 10,
+    "glide": 5,
+    "turn": -1,
+    "fade": 2,
+    "type": "Distance Driver"
+  },
+  {
     "name": "CD2",
     "manufacturer": "Discmania",
     "speed": 9,
@@ -565,6 +583,33 @@
     "turn": -1,
     "fade": 2,
     "type": "Fairway Driver"
+  },
+  {
+    "name": "CD3",
+    "manufacturer": "Discmania",
+    "speed": 10,
+    "glide": 5,
+    "turn": 0,
+    "fade": 3,
+    "type": "Distance Driver"
+  },
+  {
+    "name": "DD1",
+    "manufacturer": "Discmania",
+    "speed": 11,
+    "glide": 5,
+    "turn": 0,
+    "fade": 3,
+    "type": "Distance Driver"
+  },
+  {
+    "name": "DD2",
+    "manufacturer": "Discmania",
+    "speed": 12,
+    "glide": 5,
+    "turn": -1,
+    "fade": 2,
+    "type": "Distance Driver"
   },
   {
     "name": "DD3",
@@ -597,6 +642,24 @@
     "name": "FD",
     "manufacturer": "Discmania",
     "speed": 7,
+    "glide": 6,
+    "turn": -1,
+    "fade": 1,
+    "type": "Fairway Driver"
+  },
+  {
+    "name": "FD1",
+    "manufacturer": "Discmania",
+    "speed": 7,
+    "glide": 6,
+    "turn": -1,
+    "fade": 1,
+    "type": "Fairway Driver"
+  },
+  {
+    "name": "FD2",
+    "manufacturer": "Discmania",
+    "speed": 8,
     "glide": 6,
     "turn": -1,
     "fade": 1,
@@ -639,12 +702,48 @@
     "type": "Putter"
   },
   {
+    "name": "MD1",
+    "manufacturer": "Discmania",
+    "speed": 4,
+    "glide": 5,
+    "turn": 0,
+    "fade": 1,
+    "type": "Midrange"
+  },
+  {
+    "name": "MD2",
+    "manufacturer": "Discmania",
+    "speed": 4,
+    "glide": 5,
+    "turn": 0,
+    "fade": 2,
+    "type": "Midrange"
+  },
+  {
     "name": "MD3",
     "manufacturer": "Discmania",
     "speed": 5,
     "glide": 5,
     "turn": 0,
     "fade": 2,
+    "type": "Midrange"
+  },
+  {
+    "name": "MD4",
+    "manufacturer": "Discmania",
+    "speed": 4,
+    "glide": 4,
+    "turn": 0,
+    "fade": 3,
+    "type": "Midrange"
+  },
+  {
+    "name": "MD5",
+    "manufacturer": "Discmania",
+    "speed": 4,
+    "glide": 3,
+    "turn": 0,
+    "fade": 4,
     "type": "Midrange"
   },
   {
@@ -1015,6 +1114,15 @@
     "turn": 0,
     "fade": 2,
     "type": "Putter"
+  },
+  {
+    "name": "Beast",
+    "manufacturer": "Innova",
+    "speed": 10,
+    "glide": 5,
+    "turn": -2,
+    "fade": 2,
+    "type": "Distance Driver"
   },
   {
     "name": "Birdie",

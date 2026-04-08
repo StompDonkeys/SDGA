@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StompDonkeys Disc Golf</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body>
+  <header class="main-header">
+    <button class="hamburger" aria-label="Toggle Menu">☰</button>
+    <h1>STOMPDONKEYS DISC GOLF</h1>
+  </header>
+
+  <nav class="sidebar" style="display: none;">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="rounds.html">Rounds</a></li>
+      <li><a href="records.html">Records</a></li>
+      <li><a href="players.html">Players</a></li>
+      <li><a href="trends.html">Performance Trends</a></li>
+      <li><a href="awards.html">Awards</a></li>
+      <li><a href="bag.html">Bag Builder</a></li>
+      <li><a href="data.csv" download class="nav-download">Download Data</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <h2 class="page-title">BAG BUILDER</h2>
+    <p class="page-subtitle">Build and visualise your disc golf bag. Search discs, add them to your bag, and see the flight chart.</p>
+
+    <!-- Controls -->
+    <section class="trend-controls">
+      <div class="control">
+        <label for="bagPlayer">Player</label>
+        <select id="bagPlayer" aria-label="Select Player"></select>
+      </div>
+      <div class="control">
+        <button class="btn btn-sm" id="exportBag">Export Bag</button>
+      </div>
+      <div class="control">
+        <label for="importBag" class="btn btn-sm btn-file">
+          Import Bag
+          <input type="file" id="importBag" accept=".json" style="display:none;" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Flight chart -->
+    <section class="chart-shell">
+      <div class="chart-header">
+        <div class="chart-title" id="bagChartTitle">My Bag</div>
+        <div class="chart-note">Y = Speed, X = Turn + Fade</div>
+      </div>
+      <div class="bag-chart-container">
+        <canvas id="bagChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Bag contents -->
+    <section class="bag-section">
+      <h3 class="bag-section-title">My Bag <span id="bagCount">(0)</span></h3>
+      <div id="bagList" class="bag-list"></div>
+    </section>
+
+    <!-- Disc search -->
+    <section class="bag-section">
+      <h3 class="bag-section-title">Disc Database</h3>
+      <div class="bag-filters">
+        <input type="text" id="discSearch" placeholder="Search by name or manufacturer..." aria-label="Search discs" />
+        <select id="filterType" aria-label="Filter by type">
+          <option value="">All Types</option>
+          <option value="Putter">Putter</option>
+          <option value="Midrange">Midrange</option>
+          <option value="Fairway Driver">Fairway Driver</option>
+          <option value="Distance Driver">Distance Driver</option>
+        </select>
+        <select id="filterMfg" aria-label="Filter by manufacturer">
+          <option value="">All Manufacturers</option>
+        </select>
+      </div>
+      <div class="bag-filters bag-filters-flight">
+        <div class="flight-filter">
+          <label>Speed</label>
+          <select id="filterSpeed" aria-label="Filter by speed">
+            <option value="">Any</option>
+          </select>
+        </div>
+        <div class="flight-filter">
+          <label>Glide</label>
+          <select id="filterGlide" aria-label="Filter by glide">
+            <option value="">Any</option>
+          </select>
+        </div>
+        <div class="flight-filter">
+          <label>Turn</label>
+          <select id="filterTurn" aria-label="Filter by turn">
+            <option value="">Any</option>
+          </select>
+        </div>
+        <div class="flight-filter">
+          <label>Fade</label>
+          <select id="filterFade" aria-label="Filter by fade">
+            <option value="">Any</option>
+          </select>
+        </div>
+      </div>
+      <div id="discResults" class="disc-results"></div>
+      <div id="discResultsInfo" class="disc-results-info"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/pages/bag.js?v=1"></script>
+</body>
+</html>

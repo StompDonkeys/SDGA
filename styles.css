@@ -857,3 +857,190 @@ h2 {
   .pp-tile-ring .pp-tile-ring-content { gap: 6px; }
   .pp-tile-ring canvas { width: 60px !important; height: 60px !important; }
 }
+
+/* ── Bag Builder ── */
+.bag-chart-container {
+  width: 100%;
+  height: 500px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.10);
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 14px 12px;
+}
+
+.bag-section {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 10px;
+}
+.bag-section-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+/* Bag list */
+.bag-list { display: flex; flex-direction: column; gap: 14px; }
+.bag-empty { opacity: 0.6; text-align: center; padding: 20px; }
+.bag-type-group { margin-bottom: 4px; }
+.bag-type-header {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+.bag-type-discs { display: flex; flex-wrap: wrap; gap: 8px; }
+.bag-disc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  border: 1px solid rgba(0,0,0,0.06);
+  min-width: 200px;
+}
+.bag-disc-info { display: flex; flex-direction: column; flex: 1; }
+.bag-disc-name { font-weight: 800; font-size: 0.95rem; }
+.bag-disc-mfg { font-size: 0.8rem; opacity: 0.65; }
+.bag-disc-flight { font-family: 'Oswald', sans-serif; font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+.bag-disc-remove {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: rgba(198, 40, 40, 0.7);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.bag-disc-remove:hover { background: rgba(198, 40, 40, 0.1); }
+
+/* Disc search filters */
+.bag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.bag-filters input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: #fff;
+  font-size: 0.95rem;
+}
+.bag-filters select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: #fff;
+}
+.bag-filters-flight {
+  gap: 8px;
+}
+.flight-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 70px;
+}
+.flight-filter label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.flight-filter select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+/* Disc search results grid */
+.disc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.disc-card {
+  display: flex;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+  border: 1px solid rgba(0,0,0,0.06);
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.disc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+.disc-card-type {
+  width: 6px;
+  flex-shrink: 0;
+}
+.disc-card-body {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.disc-card-name { font-weight: 800; font-size: 0.95rem; }
+.disc-card-mfg { font-size: 0.8rem; opacity: 0.6; }
+.disc-card-flight { font-family: 'Oswald', sans-serif; font-size: 0.9rem; margin-top: 2px; }
+.disc-card-type-label { font-size: 0.75rem; opacity: 0.5; text-transform: uppercase; }
+.disc-card-add {
+  align-self: center;
+  background: linear-gradient(135deg, #FFC107, #FFB300);
+  border: none;
+  color: #424242;
+  font-size: 1.3rem;
+  font-weight: 900;
+  width: 40px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  height: 100%;
+}
+.disc-card-add:hover { background: linear-gradient(135deg, #FFCA28, #FFC107); }
+.disc-card-add.added { background: rgba(76, 175, 80, 0.8); color: #fff; }
+
+.disc-results-info {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  text-align: center;
+}
+
+/* Button variants */
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  min-width: auto;
+  cursor: pointer;
+  display: inline-block;
+}
+.btn-file {
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .bag-chart-container { height: 350px; }
+  .disc-grid { grid-template-columns: 1fr; }
+  .bag-disc-card { min-width: 0; }
+  .bag-filters input[type="text"] { min-width: 0; }
+}

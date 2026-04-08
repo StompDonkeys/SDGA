@@ -85,8 +85,8 @@ function renderChart(bag) {
         x: {
           title: { display: true, text: "Turn + Fade", font: { family: "Oswald", size: 14 } },
           reverse: true,
-          min: -6,
-          max: 6,
+          min: -4,
+          max: 4,
           ticks: { stepSize: 1 },
           grid: { color: "rgba(0,0,0,0.06)" },
         },

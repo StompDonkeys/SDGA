@@ -359,22 +359,23 @@ code{background:var(--bg);padding:2px 5px;border-radius:4px;font-family:var(--fm
   </div>
 </div>
 <script>
+window.onerror=function(msg,src,line,col,err){var ph=document.getElementById('page-home');if(ph)ph.innerHTML='<div style="color:#DC2626;font-family:monospace;padding:30px;font-size:13px;word-break:break-all">JS ERROR: '+msg+'<br>Line '+line+':'+col+'<br>'+(src||'')+'</div>';return false;};
 const PL=['ArmyGeddon','Jobby','Youare22','Miza','Bucis','Disease'];
 const PC={'ArmyGeddon':'#F5A800','Jobby':'#3B82F6','Youare22':'#EF4444','Miza':'#8B5CF6','Bucis':'#10B981','Disease':'#F97316'};
 let ROWS=[],PAR={},PR={},RG=[],PER='all',pCh=[],hCh=[],csvOv=null,ini={};
 function parseCSV(t){const l=t.trim().split('\n');if(l.length<2)return[];const h=cL(l[0]);return l.slice(1).map(r=>{const v=cL(r);const o={};h.forEach((x,i)=>{o[x.trim()]=(v[i]||'').trim();});return o;}).filter(r=>r.PlayerName);}
 function cL(l){const r=[];let c='',q=0;for(let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){q^=1;continue;}if(ch===','&&!q){r.push(c);c='';continue;}c+=ch;}r.push(c);return r;}
-async function loadCSV(){
-  if(csvOv)return csvOv;
-  try{
-    const ac=new AbortController();
-    const t=setTimeout(()=>ac.abort(),12000);
-    const r=await fetch('./data.csv',{signal:ac.signal});
-    clearTimeout(t);
-    if(r.ok){const txt=await r.text();return txt;}
-    console.warn('data.csv fetch status:',r.status);
-  }catch(e){console.warn('loadCSV error:',e.message);}
-  return '';
+function loadCSV(){
+  if(csvOv)return Promise.resolve(csvOv);
+  return new Promise(function(resolve){
+    var xhr=new XMLHttpRequest();
+    xhr.open('GET','data.csv',true);
+    xhr.timeout=12000;
+    xhr.onload=function(){resolve(xhr.status===200?xhr.responseText:'');};
+    xhr.onerror=function(){resolve('');};
+    xhr.ontimeout=function(){resolve('');};
+    xhr.send();
+  });
 }
 function pd(s){if(!s)return new Date(0);const m=/(\d{4})-(\d{2})-(\d{2})/.exec(s);return m?new Date(+m[1],+m[2]-1,+m[3]):new Date(0);}
 function yr(s){const d=pd(s);return d&&d.getTime()!==0?d.getFullYear():null;}
@@ -714,11 +715,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
   const valid=['home','rounds','records','profiles','awards','update'];
   const hash=window.location.hash.replace('#','');const sp=valid.includes(hash)?hash:'home';
   const ph=document.getElementById('page-home');
-  const setStep=s=>{ph.innerHTML='<div class="ld" style="min-height:300px">'+s+'</div>';};
+  ph.innerHTML='<div class="ld" style="min-height:300px">Fetching data…</div>';
   try{
-    setStep('Fetching data…');
-    const to=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timed out — is data.csv deployed?')),15000));
-    await Promise.race([initData(),to]);
+    await initData();
     ph.innerHTML=`<div class="hero"><img src="pristine_master_file.png" alt="StompDonkeys" class="hlogo" onerror="this.style.display='none'"><div class="hcnt"><div class="hwm">STOMP<span class="g">DONKEYS</span></div><div class="htag" style="font-size:16px;letter-spacing:8px;color:rgba(255,255,255,.55)">DISC GOLF</div><div class="hst" id="hero-stats"></div></div></div>
     <div class="lca"><div class="lhd"><div><div class="llb">🕐 Most Recent Round</div><div id="lat-co" class="lco"></div><div id="lat-dt" class="ldt"></div></div><a href="#" onclick="go('rounds')" class="bto" style="font-size:11px;padding:6px 13px">View All →</a></div><div id="lat-sc" class="lsc"></div></div>
     <div class="mb24"><div class="st">Current Ratings</div><div id="home-lb" class="lbc"></div></div>
@@ -726,9 +725,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
     <div class="g2 mb24"><div><div class="st">🔥 Scoring Streaks</div><div class="card" id="home-str"></div></div><div><div class="st">⛳ Course Difficulty</div><div class="card" id="home-dif"></div></div></div>
     <div class="g2 mb24"><div><div class="st">📅 Activity by Year</div><div class="card"><div style="height:190px"><canvas id="act-ch"></canvas></div></div></div><div><div class="st">🏆 Win Rates</div><div class="card" id="home-wr"></div></div></div>
     <div class="st mt8">🎯 Upcoming Milestones</div><div id="home-ms" class="mb24"></div>`;
-  }catch(e){ph.innerHTML=`<div style="color:var(--red);font-family:var(--fh);padding:40px;font-size:15px">⚠️ ${e.message}<br><span style="font-size:11px;color:var(--txm);font-family:var(--fb)">Check that data.csv is in the repo root alongside index.html</span></div>`;}
+  }catch(e){ph.innerHTML='<div style="color:#DC2626;font-family:sans-serif;padding:40px;font-size:14px">Failed to load: '+e.message+'</div>';}
   ini={};go(sp);
-  window.addEventListener('hashchange',()=>{const h=window.location.hash.replace('#','');if(valid.includes(h))go(h);});
+  window.addEventListener('hashchange',function(){var h=window.location.hash.replace('#','');if(valid.includes(h))go(h);});
 });
 </script>
 </body>
